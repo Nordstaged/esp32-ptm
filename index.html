@@ -1,0 +1,1346 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#241c2e">
+<title>Lampen</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<style>
+  :root {
+    --room: #241c2e;
+    --strip: #372d44;
+    --rule: #4b3f5b;
+    --text: #f3ece0;
+    --quiet: #b9adc4;
+    --problem: #ffb29f;
+    --bar: 5.25rem;
+    font-family: ui-rounded, "SF Pro Rounded", "Google Sans", Roboto, system-ui, sans-serif;
+    font-size: 100%;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100dvh;
+    background: var(--room);
+    color: var(--text);
+    -webkit-tap-highlight-color: transparent;
+  }
+  .visually-hidden {
+    position: absolute; width: 1px; height: 1px; overflow: hidden;
+    clip-path: inset(50%); white-space: nowrap;
+  }
+
+  main {
+    max-width: 40rem;
+    margin-inline: auto;
+    min-height: calc(100dvh - var(--bar) - 3.5rem - env(safe-area-inset-bottom));
+    transition: opacity .2s;
+    display: flex;
+    flex-direction: column;
+  }
+  .panel { flex: 1; }
+  main[inert] { opacity: .42; }
+
+  .lamp {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: .75rem;
+    padding-block: 1rem;
+  }
+  .lamp-head, .lamp-tune { display: flex; align-items: center; gap: .75rem; padding-inline: 1.25rem; }
+  .lamp h2 { margin: 0; font-size: 1.5rem; font-weight: 600; letter-spacing: -.01em; }
+  .level { color: var(--quiet); font-size: 1.0625rem; font-variant-numeric: tabular-nums; margin-right: auto; }
+
+  .power {
+    min-width: 4.5rem; min-height: 2.75rem; padding-inline: 1rem;
+    border: 1.5px solid var(--rule); border-radius: 99px;
+    background: none; color: var(--quiet);
+    font: inherit; font-weight: 600; cursor: pointer;
+  }
+  .power[aria-pressed="true"] { background: var(--text); border-color: var(--text); color: var(--room); }
+
+  /* De strip zelf: lichtgevende segmenten tot aan de ingestelde helderheid. */
+  .strip { position: relative; height: 5.25rem; background: var(--strip); overflow: hidden; }
+  .lit {
+    position: absolute; inset: 0 auto 0 0;
+    width: calc(var(--level) * 100%);
+    background: var(--glow);
+    box-shadow: 0 0 2.5rem 0 var(--glow);
+    transition: opacity .18s;
+  }
+  .lamp.is-off .lit { opacity: .13; box-shadow: none; }
+  .strip::after {
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+    background: repeating-linear-gradient(90deg, transparent 0 1.75rem, var(--room) 1.75rem 2rem);
+  }
+  .strip input {
+    position: absolute; inset: 0; width: 100%; height: 100%; margin: 0;
+    opacity: 0; cursor: ew-resize; touch-action: pan-y;
+  }
+  .strip:has(input:focus-visible) { outline: 3px solid var(--text); outline-offset: -3px; }
+
+  .mode { display: flex; flex: none; border: 1.5px solid var(--rule); border-radius: .625rem; overflow: hidden; }
+  .mode button {
+    min-height: 2.75rem; padding-inline: .875rem; border: 0;
+    background: none; color: var(--quiet); font: inherit; cursor: pointer;
+  }
+  .mode button[aria-pressed="true"] { background: var(--rule); color: var(--text); }
+
+  .kelvin { flex: 1; display: flex; align-items: center; gap: .625rem; min-width: 0; }
+  .kelvin output { flex: none; width: 4rem; text-align: right; color: var(--quiet); font-variant-numeric: tabular-nums; }
+  .kelvin input { flex: 1; min-width: 0; height: 2.75rem; margin: 0; background: none; appearance: none; -webkit-appearance: none; touch-action: pan-y; }
+  .kelvin input::-webkit-slider-runnable-track { height: .625rem; border-radius: 99px; background: linear-gradient(90deg, #ffb76f, #fff0dc 50%, #c9dfff); }
+  .kelvin input::-moz-range-track { height: .625rem; border-radius: 99px; background: linear-gradient(90deg, #ffb76f, #fff0dc 50%, #c9dfff); }
+  .kelvin input::-webkit-slider-thumb { -webkit-appearance: none; width: 1.75rem; height: 1.75rem; margin-top: -.5625rem; border-radius: 50%; border: 3px solid var(--room); background: var(--text); }
+  .kelvin input::-moz-range-thumb { width: 1.25rem; height: 1.25rem; border-radius: 50%; border: 3px solid var(--room); background: var(--text); }
+
+  .color { flex: 1; display: flex; align-items: center; gap: .625rem; min-height: 2.75rem; color: var(--quiet); cursor: pointer; }
+  .color input { flex: none; width: 3.5rem; height: 2.75rem; padding: 0; border: 1.5px solid var(--rule); border-radius: .625rem; background: none; cursor: pointer; }
+  .color input::-webkit-color-swatch-wrapper { padding: 3px; }
+  .color input::-webkit-color-swatch { border: 0; border-radius: .375rem; }
+
+  /* Tabbladen */
+  .tabs { display: flex; gap: 1.5rem; padding: calc(.5rem + env(safe-area-inset-top)) 1.25rem 0; max-width: 40rem; margin-inline: auto; }
+  .tabs button {
+    min-height: 2.75rem; padding: 0; border: 0; border-bottom: 3px solid transparent;
+    background: none; color: var(--quiet); font: inherit; font-size: 1.125rem; font-weight: 600; cursor: pointer;
+  }
+  .tabs button[aria-selected="true"] { color: var(--text); border-bottom-color: var(--text); }
+  .panel[hidden] { display: none; }
+  #panel-lampen { display: grid; grid-auto-rows: minmax(min-content, 1fr); min-height: 100%; }
+
+  /* Strip-indeling */
+  .layout { position: relative; height: 4.5rem; background: var(--strip); margin-top: 1rem; overflow: hidden; }
+  .layout::after {
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+    background: repeating-linear-gradient(90deg, transparent 0 calc(var(--cell) - 2px), var(--room) calc(var(--cell) - 2px) var(--cell));
+  }
+  .layout.is-dense::after { display: none; }
+  .band {
+    position: absolute; top: 0; bottom: 0; left: calc(var(--from) * 100%); width: calc(var(--span) * 100%);
+    padding: 0 0 0 .375rem; border: 0; background: var(--hue); color: var(--room);
+    font: inherit; font-weight: 600; font-size: .9375rem; text-align: left;
+    white-space: nowrap; overflow: hidden; cursor: pointer; z-index: 1;
+  }
+  .band.is-selected { box-shadow: inset 0 0 0 3px var(--text); }
+  .scale { display: flex; justify-content: space-between; gap: 1rem; padding: .375rem 1.25rem 0; color: var(--quiet); font-variant-numeric: tabular-nums; }
+
+  .field-total { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1.25rem 1.25rem .5rem; }
+  .field-total label { font-size: 1.125rem; font-weight: 600; }
+  input.num {
+    width: 5.5rem; min-height: 2.75rem; padding-inline: .625rem;
+    border: 1.5px solid var(--rule); border-radius: .625rem;
+    background: none; color: var(--text); font: inherit; font-variant-numeric: tabular-nums;
+  }
+  input.num.is-wrong { border-color: var(--problem); }
+  .rows { display: flex; flex-direction: column; }
+  .row { display: grid; grid-template-columns: .75rem 1fr auto; column-gap: .75rem; row-gap: .625rem; align-items: center; padding: 1rem 1.25rem; border-top: 1.5px solid var(--rule); }
+  .row.is-selected { background: #2e2539; }
+  .row .chip { width: .75rem; align-self: stretch; grid-row: span 2; background: var(--hue); }
+  .row input.name {
+    min-width: 0; min-height: 2.75rem; padding: 0; border: 0; border-bottom: 1.5px solid var(--rule);
+    background: none; color: var(--text); font: inherit; font-size: 1.125rem; font-weight: 600;
+  }
+  .row .remove, .text-button { min-height: 2.75rem; padding-inline: .25rem; border: 0; background: none; color: var(--quiet); font: inherit; cursor: pointer; text-decoration: underline; text-underline-offset: .2em; }
+  .row .numbers { grid-column: 2 / 4; display: flex; align-items: center; gap: .625rem; color: var(--quiet); flex-wrap: wrap; }
+  .row .numbers label { display: flex; align-items: center; gap: .5rem; }
+  .row input.num { width: 4.75rem; }
+  .row .range { margin-left: auto; font-variant-numeric: tabular-nums; }
+  .row .message { grid-column: 2 / 4; margin: 0; color: var(--problem); }
+  .add { padding: .5rem 1.25rem 1rem; border-top: 1.5px solid var(--rule); }
+
+  /* Knoppen */
+  .rocker { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; margin: 1rem 1.25rem 0; }
+  .rocker button {
+    min-height: 4.5rem; padding: .5rem .75rem; border: 0; background: var(--strip); color: var(--text);
+    font: inherit; text-align: left; cursor: pointer; display: flex; flex-direction: column; justify-content: center; gap: .125rem;
+  }
+  .rocker button strong { font-size: 1.0625rem; font-weight: 600; }
+  .rocker button span { color: var(--quiet); font-size: .9375rem; }
+  .rocker button[aria-pressed="true"] { background: var(--text); color: var(--room); }
+  .rocker button[aria-pressed="true"] span { color: var(--rule); }
+  .rocker .wide-top { border-radius: .875rem 0 0 0; }
+  .rocker .wide-right { border-radius: 0 .875rem 0 0; }
+  .rocker .wide-bottom { border-radius: 0 0 0 .875rem; }
+  .rocker .wide-end { border-radius: 0 0 .875rem 0; }
+  .rocker-both { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; margin: .75rem 1.25rem 0; }
+  .rocker-both button { display: flex; flex-direction: column; justify-content: center; border-radius: .625rem; min-height: 3.5rem; padding-inline: .75rem; border: 1.5px solid var(--rule); background: none; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+  .rocker-both button span { color: var(--quiet); font-size: .9375rem; }
+  .rocker-both button[aria-pressed="true"] { background: var(--text); border-color: var(--text); color: var(--room); font-weight: 600; }
+  .rocker-both button[aria-pressed="true"] span { color: var(--rule); font-weight: 400; }
+  .gesture { padding: 1rem 1.25rem; border-top: 1.5px solid var(--rule); display: flex; flex-direction: column; gap: .625rem; }
+  .gestures { margin-top: 1rem; }
+  .gesture h3 { margin: 0; font-size: 1.0625rem; font-weight: 600; }
+  .gesture select {
+    width: 100%; min-height: 2.75rem; padding-inline: .625rem;
+    border: 1.5px solid var(--rule); border-radius: .625rem;
+    background: var(--room); color: var(--text); font: inherit;
+  }
+  .chips { display: flex; flex-wrap: wrap; gap: .5rem; }
+  .chips button { min-height: 2.75rem; padding-inline: .875rem; border: 1.5px solid var(--rule); border-radius: .625rem; background: none; color: var(--quiet); font: inherit; cursor: pointer; }
+  .chips button[aria-pressed="true"] { background: var(--rule); color: var(--text); }
+  .gesture .message { margin: 0; color: var(--problem); }
+  .gesture .hint { margin: 0; color: var(--quiet); }
+  .value-row { display: flex; align-items: center; gap: .625rem; }
+  .value-row output { flex: none; width: 3.25rem; text-align: right; color: var(--quiet); font-variant-numeric: tabular-nums; }
+  .timing { padding: 1rem 1.25rem 1.5rem; border-top: 1.5px solid var(--rule); display: flex; flex-direction: column; gap: .5rem; }
+  .timing label { font-weight: 600; }
+  input.slider { flex: 1; min-width: 0; height: 2.75rem; margin: 0; accent-color: var(--text); touch-action: pan-y; }
+
+  [hidden] { display: none !important; }
+  :is(button, input):focus-visible { outline: 3px solid var(--text); outline-offset: 2px; }
+
+  .bar {
+    position: sticky; bottom: 0;
+    display: flex; align-items: center; gap: 1rem;
+    min-height: var(--bar);
+    padding: .75rem 1.25rem calc(.75rem + env(safe-area-inset-bottom));
+    background: var(--room);
+    border-top: 1.5px solid var(--rule);
+  }
+  .bar p { flex: 1; margin: 0; line-height: 1.35; }
+  .bar p.problem { color: var(--problem); }
+  .bar button {
+    flex: none; min-height: 3rem; padding-inline: 1.375rem;
+    border: 0; border-radius: 99px;
+    background: var(--text); color: var(--room);
+    font: inherit; font-weight: 600; cursor: pointer;
+  }
+  .bar button.quiet { background: none; color: var(--quiet); border: 1.5px solid var(--rule); }
+  .bar button:disabled { opacity: .5; cursor: default; }
+
+  @media (min-width: 40rem) { .strip, .layout { border-radius: .25rem; margin-inline: 1.25rem; } }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<h1 class="visually-hidden">Lampen</h1>
+<nav class="tabs" role="tablist" aria-label="Onderdelen">
+  <button role="tab" id="tab-lampen" aria-controls="panel-lampen" aria-selected="true" type="button">Lampen</button>
+  <button role="tab" id="tab-strip" aria-controls="panel-strip" aria-selected="false" tabindex="-1" type="button">Strip</button>
+  <button role="tab" id="tab-knoppen" aria-controls="panel-knoppen" aria-selected="false" tabindex="-1" type="button">Knoppen</button>
+</nav>
+<main id="content" inert>
+  <section class="panel" id="panel-lampen" role="tabpanel" aria-labelledby="tab-lampen"></section>
+
+  <section class="panel" id="panel-strip" role="tabpanel" aria-labelledby="tab-strip" hidden>
+    <div class="layout" id="layout" role="group" aria-label="Indeling van de strip"></div>
+    <div class="scale"><span>1</span><span id="free"></span><span id="scale-end"></span></div>
+    <div class="field-total">
+      <label for="total">Lengte van de strip</label>
+      <input class="num" id="total" type="number" min="1" max="1000" inputmode="numeric">
+    </div>
+    <div class="rows" id="rows"></div>
+    <div class="add"><button class="text-button" id="add" type="button">Lamp toevoegen</button></div>
+  </section>
+
+  <section class="panel" id="panel-knoppen" role="tabpanel" aria-labelledby="tab-knoppen" hidden>
+    <div class="rocker" id="rocker" role="group" aria-label="Kies een knop"></div>
+    <div class="rocker-both" id="rocker-both" role="group" aria-label="Twee knoppen tegelijk"></div>
+    <div class="gestures" id="gestures"></div>
+    <div class="timing">
+      <label for="hold">Lang indrukken vanaf <span id="hold-out"></span></label>
+      <input class="slider" id="hold" type="range" min="300" max="1500" step="50">
+      <label for="double">Tijd voor dubbel drukken <span id="double-out"></span></label>
+      <input class="slider" id="double" type="range" min="200" max="800" step="50">
+      <p class="hint">Een knop met een functie voor dubbel drukken reageert op één keer drukken pas na deze tijd.</p>
+    </div>
+  </section>
+</main>
+<div class="bar">
+  <p id="status" role="status"></p>
+  <button id="action" type="button"></button>
+</div>
+
+<template id="lamp-template">
+  <section class="lamp">
+    <div class="lamp-head">
+      <h2></h2>
+      <span class="level"></span>
+      <button class="power" type="button" aria-pressed="false"></button>
+    </div>
+    <div class="strip">
+      <div class="lit"></div>
+      <input class="brightness" type="range" min="1" max="255">
+    </div>
+    <div class="lamp-tune">
+      <div class="mode" role="group" aria-label="Soort licht">
+        <button type="button" data-mode="white">Wit</button>
+        <button type="button" data-mode="color">Kleur</button>
+      </div>
+      <div class="kelvin">
+        <input type="range" step="50" aria-label="Kleurtemperatuur">
+        <output></output>
+      </div>
+      <label class="color"><input type="color"><span>Kies een kleur</span></label>
+    </div>
+  </section>
+</template>
+
+<script>
+"use strict";
+
+// Moeten overeenkomen met main/ble_service.c, main/lamp_model.h en main/lamp_config.h.
+const SERVICE_UUID = "6e7b1a50-4c3e-4f2a-9d11-7a5c3e0b2f10";
+const LAMPS_UUID = "6e7b1a50-4c3e-4f2a-9d11-7a5c3e0b2f11";
+const STRIP_UUID = "6e7b1a50-4c3e-4f2a-9d11-7a5c3e0b2f12";
+const BUTTONS_UUID = "6e7b1a50-4c3e-4f2a-9d11-7a5c3e0b2f13";
+
+const LAMP_MAX = 8;
+const KELVIN_MIN = 3000;
+const KELVIN_MAX = 6500;
+const STRIP_MAX = 1000;
+const NAME_BYTES = 20;
+const LAMP_FRAME = 7;
+const STRIP_FRAME = 4 + LAMP_MAX * 24;
+const INPUT_COUNT = 6;
+const GESTURE_COUNT = 3;
+const BUTTON_FRAME = 4 + INPUT_COUNT * GESTURE_COUNT * 4;
+const WIRE_VERSION = 1;
+const ALL_LAMPS = 0xff;
+const NEW_LAMP_SEGMENTS = 20;
+const DENSE_ABOVE = 100;  // bij meer segmenten geen losse vakjes tekenen
+
+const SEND_INTERVAL_MS = 66;
+const CONNECT_TIMEOUT_MS = 15000;
+const PAIRING_TIMEOUT_MS = 90000;
+const PAIRING_RETRY_MS = 1500;
+const RECONNECT_DELAYS_MS = [1000, 2000, 4000];
+const SAVED_NOTICE_MS = 2500;
+
+const FLAG_ON = 1;
+const FLAG_COLOR = 2;
+
+const HUES = ["#ffc078", "#7fd8c4", "#f59fc5", "#b7d96b", "#8fb4ff", "#ff9e80", "#c7a6ff", "#ffe27a"];
+
+const INPUTS = [
+  { title: "A0", place: "Links boven", area: "wide-top" },
+  { title: "B0", place: "Rechts boven", area: "wide-right" },
+  { title: "A1", place: "Links onder", area: "wide-bottom" },
+  { title: "B1", place: "Rechts onder", area: "wide-end" },
+];
+// Volgorde op de draad: A0, A1, B0, B1, A0+B0, A1+B1. Op het scherm: rooster.
+const INPUT_INDEX = { A0: 0, A1: 1, B0: 2, B1: 3 };
+const BOTH = [
+  { index: 4, place: "Beide boven", title: "A0 + B0" },
+  { index: 5, place: "Beide onder", title: "A1 + B1" },
+];
+const GESTURES = ["Eén keer drukken", "Dubbel drukken", "Lang indrukken"];
+const LONG = 2;
+
+const NONE = 0, BRIGHTNESS = 4, ALTERNATE = 7;
+const ACTIONS = [
+  { value: 0, label: "Niets" },
+  { value: 1, label: "Aan of uit" },
+  { value: 2, label: "Aan" },
+  { value: 3, label: "Uit" },
+  { value: 4, label: "Vaste helderheid" },
+  { value: 5, label: "Stap feller", holdLabel: "Feller zolang je vasthoudt" },
+  { value: 6, label: "Stap dimmer", holdLabel: "Dimmer zolang je vasthoudt" },
+  { value: 7, label: "Om en om dimmen", holdLabel: "Om en om feller en dimmer", holdOnly: true },
+  { value: 8, label: "Stap warmer", holdLabel: "Warmer zolang je vasthoudt" },
+  { value: 9, label: "Stap koeler", holdLabel: "Koeler zolang je vasthoudt" },
+];
+
+const hasBluetooth = "bluetooth" in navigator;
+const $ = (id) => document.getElementById(id);
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const clone = (value) => JSON.parse(JSON.stringify(value));
+
+function withTimeout(promise, ms) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), ms)),
+  ]);
+}
+
+// ---- Gegevens --------------------------------------------------------------
+
+const defaultLamp = () => ({ on: false, mode: "white", brightness: 255, kelvin: 4000, r: 255, g: 160, b: 60 });
+
+function defaultStrip() {
+  const lamps = Array.from({ length: LAMP_MAX }, () => ({ start: 0, count: 0, name: "" }));
+  for (let i = 0; i < 3; i++) Object.assign(lamps[i], { start: i * 20, count: 20 });
+  return { total: 60, lamps };
+}
+
+function defaultButtons() {
+  const bindings = Array.from({ length: INPUT_COUNT }, () =>
+    Array.from({ length: GESTURE_COUNT }, () => ({ action: NONE, lamps: ALL_LAMPS, value: 128 })));
+  bindings[0][0] = { action: 1, lamps: 1, value: 128 };
+  bindings[1][0] = { action: 1, lamps: 2, value: 128 };
+  bindings[2][0] = { action: 1, lamps: 4, value: 128 };
+  bindings[3][0] = { action: 3, lamps: ALL_LAMPS, value: 128 };
+  return { holdMs: 500, doubleMs: 400, bindings };
+}
+
+const lamps = Array.from({ length: LAMP_MAX }, defaultLamp);
+let strip = defaultStrip();
+let stripDraft = clone(strip);
+let buttons = defaultButtons();
+let buttonsDraft = clone(buttons);
+
+const lampViews = [];
+let activeTab = "lampen";
+let selectedSlot = 0;
+let selectedInput = 0;
+let saving = false;
+let savedUntil = 0;
+
+// Een ongeldig aantal (NaN tijdens typen) laat de lamp bestaan, 0 betekent verwijderd.
+const isActive = (slot, config = strip) => config.lamps[slot].count !== 0;
+const lampName = (slot, config = strip) => config.lamps[slot].name || `Lamp ${slot + 1}`;
+const activeSlots = (config = strip) => [...Array(LAMP_MAX).keys()].filter((i) => isActive(i, config));
+
+// ---- Berichtformaat --------------------------------------------------------
+
+function encodeLamp(lamp, out = new Uint8Array(LAMP_FRAME), offset = 0) {
+  out[offset] = (lamp.on ? FLAG_ON : 0) | (lamp.mode === "color" ? FLAG_COLOR : 0);
+  out[offset + 1] = lamp.brightness;
+  out[offset + 2] = lamp.kelvin & 0xff;
+  out[offset + 3] = lamp.kelvin >> 8;
+  out[offset + 4] = lamp.r;
+  out[offset + 5] = lamp.g;
+  out[offset + 6] = lamp.b;
+  return out;
+}
+
+function decodeLamp(view, offset = 0) {
+  const flags = view.getUint8(offset);
+  return {
+    on: (flags & FLAG_ON) !== 0,
+    mode: (flags & FLAG_COLOR) !== 0 ? "color" : "white",
+    brightness: view.getUint8(offset + 1),
+    kelvin: view.getUint16(offset + 2, true),
+    r: view.getUint8(offset + 4),
+    g: view.getUint8(offset + 5),
+    b: view.getUint8(offset + 6),
+  };
+}
+
+function encodeLampUpdate(slot) {
+  const out = new Uint8Array(1 + LAMP_FRAME);
+  out[0] = slot;
+  encodeLamp(lamps[slot], out, 1);
+  return out;
+}
+
+// Kort een naam in op een tekengrens, zodat de UTF-8 geldig blijft.
+function nameBytes(text) {
+  const encoder = new TextEncoder();
+  let trimmed = text;
+  while (encoder.encode(trimmed).length > NAME_BYTES) trimmed = [...trimmed].slice(0, -1).join("");
+  return encoder.encode(trimmed);
+}
+
+function encodeStrip(config) {
+  const out = new Uint8Array(STRIP_FRAME);
+  const view = new DataView(out.buffer);
+  out[0] = WIRE_VERSION;
+  view.setUint16(2, config.total, true);
+  config.lamps.forEach((lamp, i) => {
+    const at = 4 + i * 24;
+    view.setUint16(at, lamp.count > 0 ? lamp.start : 0, true);
+    view.setUint16(at + 2, lamp.count, true);
+    out.set(nameBytes(lamp.name), at + 4);
+  });
+  return out;
+}
+
+function decodeStrip(view) {
+  const decoder = new TextDecoder();
+  const config = { total: view.getUint16(2, true), lamps: [] };
+  for (let i = 0; i < LAMP_MAX; i++) {
+    const at = 4 + i * 24;
+    const raw = new Uint8Array(view.buffer, view.byteOffset + at + 4, NAME_BYTES);
+    const end = raw.indexOf(0);
+    config.lamps.push({
+      start: view.getUint16(at, true),
+      count: view.getUint16(at + 2, true),
+      name: decoder.decode(end < 0 ? raw : raw.subarray(0, end)),
+    });
+  }
+  return config;
+}
+
+function encodeButtons(config) {
+  const out = new Uint8Array(BUTTON_FRAME);
+  out[0] = WIRE_VERSION;
+  out[1] = Math.round(config.holdMs / 10);
+  out[2] = Math.round(config.doubleMs / 10);
+  let at = 4;
+  for (const gestures of config.bindings) {
+    for (const binding of gestures) {
+      out[at] = binding.action;
+      out[at + 1] = binding.lamps;
+      out[at + 2] = binding.value;
+      at += 4;
+    }
+  }
+  return out;
+}
+
+function decodeButtons(view) {
+  const config = { holdMs: view.getUint8(1) * 10, doubleMs: view.getUint8(2) * 10, bindings: [] };
+  let at = 4;
+  for (let input = 0; input < INPUT_COUNT; input++) {
+    const gestures = [];
+    for (let gesture = 0; gesture < GESTURE_COUNT; gesture++) {
+      gestures.push({ action: view.getUint8(at), lamps: view.getUint8(at + 1), value: view.getUint8(at + 2) || 128 });
+      at += 4;
+    }
+    config.bindings.push(gestures);
+  }
+  return config;
+}
+
+// ---- Tabblad Lampen --------------------------------------------------------
+
+function kelvinToCss(kelvin) {
+  const t = kelvin / 100;
+  const r = t <= 66 ? 255 : 329.7 * Math.pow(t - 60, -0.1332);
+  const g = t <= 66 ? 99.47 * Math.log(t) - 161.12 : 288.12 * Math.pow(t - 60, -0.0755);
+  const b = t >= 66 ? 255 : 138.52 * Math.log(t - 10) - 305.04;
+  const clamp = (v) => Math.round(Math.min(255, Math.max(0, v)));
+  return `rgb(${clamp(r)} ${clamp(g)} ${clamp(b)})`;
+}
+
+const toHex = (lamp) => "#" + [lamp.r, lamp.g, lamp.b].map((v) => v.toString(16).padStart(2, "0")).join("");
+
+function renderLamp(slot) {
+  const lamp = lamps[slot];
+  const view = lampViews[slot];
+  if (!view) return;
+  const percent = Math.round((lamp.brightness / 255) * 100);
+
+  view.root.classList.toggle("is-off", !lamp.on);
+  view.strip.style.setProperty("--level", lamp.brightness / 255);
+  view.strip.style.setProperty("--glow", lamp.mode === "color" ? toHex(lamp) : kelvinToCss(lamp.kelvin));
+  view.level.textContent = `${percent}%`;
+  view.power.textContent = lamp.on ? "Aan" : "Uit";
+  view.power.setAttribute("aria-pressed", String(lamp.on));
+
+  if (document.activeElement !== view.brightness) view.brightness.value = lamp.brightness;
+  view.brightness.setAttribute("aria-valuetext", `${percent} procent`);
+  if (document.activeElement !== view.kelvinInput) view.kelvinInput.value = lamp.kelvin;
+  view.kelvinOut.textContent = `${lamp.kelvin} K`;
+  view.colorInput.value = toHex(lamp);
+
+  for (const button of view.modeButtons) {
+    button.setAttribute("aria-pressed", String(button.dataset.mode === lamp.mode));
+  }
+  view.kelvin.hidden = lamp.mode !== "white";
+  view.color.hidden = lamp.mode !== "color";
+}
+
+function changeLamp(slot, patch) {
+  Object.assign(lamps[slot], patch);
+  renderLamp(slot);
+  sendLamp(slot);
+}
+
+function buildLamp(slot) {
+  const fragment = $("lamp-template").content.cloneNode(true);
+  const root = fragment.querySelector(".lamp");
+  const view = {
+    root,
+    level: root.querySelector(".level"),
+    power: root.querySelector(".power"),
+    strip: root.querySelector(".strip"),
+    brightness: root.querySelector(".brightness"),
+    modeButtons: [...root.querySelectorAll(".mode button")],
+    kelvin: root.querySelector(".kelvin"),
+    kelvinInput: root.querySelector(".kelvin input"),
+    kelvinOut: root.querySelector(".kelvin output"),
+    color: root.querySelector(".color"),
+    colorInput: root.querySelector(".color input"),
+  };
+  const name = lampName(slot);
+  root.querySelector("h2").textContent = name;
+  root.setAttribute("aria-label", name);
+  view.brightness.setAttribute("aria-label", `Helderheid ${name}`);
+  view.power.setAttribute("aria-label", `${name} aan of uit`);
+  view.kelvinInput.min = KELVIN_MIN;
+  view.kelvinInput.max = KELVIN_MAX;
+
+  view.power.addEventListener("click", () => changeLamp(slot, { on: !lamps[slot].on }));
+  view.brightness.addEventListener("input", () => changeLamp(slot, { on: true, brightness: Number(view.brightness.value) }));
+  view.kelvinInput.addEventListener("input", () => changeLamp(slot, { kelvin: Number(view.kelvinInput.value) }));
+  view.colorInput.addEventListener("input", () => {
+    const hex = view.colorInput.value;
+    changeLamp(slot, {
+      r: parseInt(hex.slice(1, 3), 16),
+      g: parseInt(hex.slice(3, 5), 16),
+      b: parseInt(hex.slice(5, 7), 16),
+    });
+  });
+  for (const button of view.modeButtons) {
+    button.addEventListener("click", () => changeLamp(slot, { mode: button.dataset.mode }));
+  }
+
+  lampViews[slot] = view;
+  $("panel-lampen").append(fragment);
+  renderLamp(slot);
+}
+
+function renderLampsPanel() {
+  $("panel-lampen").replaceChildren();
+  lampViews.length = 0;
+  activeSlots().forEach(buildLamp);
+}
+
+// ---- Tabblad Strip ---------------------------------------------------------
+
+function stripProblems(config) {
+  const perSlot = {};
+  let total = null;
+  if (!Number.isInteger(config.total) || config.total < 1 || config.total > STRIP_MAX) {
+    total = `Vul een lengte in van 1 tot en met ${STRIP_MAX}.`;
+  }
+  const slots = activeSlots(config);
+  for (const slot of slots) {
+    const lamp = config.lamps[slot];
+    if (!Number.isInteger(lamp.start) || lamp.start < 0) {
+      perSlot[slot] = "Vul een geldig startsegment in.";
+    } else if (!Number.isInteger(lamp.count) || lamp.count < 1) {
+      perSlot[slot] = "Vul een aantal van minimaal 1 in.";
+    } else if (total === null && lamp.start + lamp.count > config.total) {
+      perSlot[slot] = `Loopt voorbij het einde van de strip (${config.total}).`;
+    } else {
+      const other = slots.find((o) => {
+        const b = config.lamps[o];
+        return o !== slot && Number.isInteger(b.start) && lamp.start < b.start + b.count && b.start < lamp.start + lamp.count;
+      });
+      if (other !== undefined) perSlot[slot] = `Overlapt met ${lampName(other, config)}.`;
+    }
+  }
+  return { total, perSlot, ok: total === null && Object.keys(perSlot).length === 0 && slots.length > 0 };
+}
+
+function freeSegments(config) {
+  const used = activeSlots(config).reduce((sum, i) => sum + (config.lamps[i].count || 0), 0);
+  return Math.max(0, config.total - used);
+}
+
+function renderLayout() {
+  const config = stripDraft;
+  const layout = $("layout");
+  const total = Number.isInteger(config.total) && config.total > 0 ? config.total : 1;
+  layout.style.setProperty("--cell", `${100 / total}%`);
+  layout.classList.toggle("is-dense", total > DENSE_ABOVE);
+  layout.replaceChildren();
+
+  for (const slot of activeSlots(config)) {
+    const lamp = config.lamps[slot];
+    if (!Number.isInteger(lamp.start) || !Number.isInteger(lamp.count)) continue;
+    const band = document.createElement("button");
+    band.type = "button";
+    band.className = "band" + (slot === selectedSlot ? " is-selected" : "");
+    band.style.setProperty("--from", Math.min(lamp.start, total) / total);
+    band.style.setProperty("--span", Math.min(lamp.count, total - Math.min(lamp.start, total)) / total);
+    band.style.setProperty("--hue", HUES[slot]);
+    band.textContent = lampName(slot, config);
+    band.setAttribute("aria-label", `${lampName(slot, config)}, segment ${lamp.start + 1} tot en met ${lamp.start + lamp.count}`);
+    band.addEventListener("click", () => selectSlot(slot, true));
+    layout.append(band);
+  }
+
+  $("scale-end").textContent = String(total);
+  const free = freeSegments(config);
+  $("free").textContent = free > 0 ? `${free} niet in gebruik` : "";
+}
+
+function selectSlot(slot, scroll) {
+  selectedSlot = slot;
+  for (const row of $("rows").children) {
+    const match = Number(row.dataset.slot) === slot;
+    row.classList.toggle("is-selected", match);
+    if (match && scroll) row.scrollIntoView({ block: "nearest" });
+  }
+  renderLayout();
+}
+
+function renderStripMessages() {
+  const problems = stripProblems(stripDraft);
+  $("total").classList.toggle("is-wrong", problems.total !== null);
+  for (const row of $("rows").children) {
+    const message = problems.perSlot[Number(row.dataset.slot)];
+    const element = row.querySelector(".message");
+    element.textContent = message ?? "";
+    element.hidden = !message;
+    const lamp = stripDraft.lamps[Number(row.dataset.slot)];
+    row.querySelector(".start").classList.toggle("is-wrong", !Number.isInteger(lamp.start) || lamp.start < 0);
+    row.querySelector(".count").classList.toggle("is-wrong", !Number.isInteger(lamp.count) || lamp.count < 1);
+  }
+}
+
+function afterStripEdit() {
+  renderLayout();
+  renderStripMessages();
+  renderBar();
+}
+
+function numberOf(input) {
+  return input.value.trim() === "" ? NaN : Number(input.value);
+}
+
+function buildStripRow(slot) {
+  const lamp = stripDraft.lamps[slot];
+  const row = document.createElement("div");
+  row.className = "row" + (slot === selectedSlot ? " is-selected" : "");
+  row.dataset.slot = slot;
+  row.style.setProperty("--hue", HUES[slot]);
+  row.innerHTML = `
+    <span class="chip" aria-hidden="true"></span>
+    <input class="name" type="text" autocomplete="off" aria-label="Naam van lamp ${slot + 1}" placeholder="Lamp ${slot + 1}">
+    <button class="remove" type="button">Verwijderen</button>
+    <div class="numbers">
+      <label>Start <input class="num start" type="number" min="1" inputmode="numeric"></label>
+      <label>Aantal <input class="num count" type="number" min="1" inputmode="numeric"></label>
+      <span class="range"></span>
+    </div>
+    <p class="message" hidden></p>`;
+
+  const name = row.querySelector(".name");
+  const start = row.querySelector(".start");
+  const count = row.querySelector(".count");
+  const remove = row.querySelector(".remove");
+  const range = row.querySelector(".range");
+  const writeRange = () => {
+    range.textContent = Number.isInteger(lamp.start) && lamp.count > 0 ? `t/m ${lamp.start + lamp.count}` : "";
+  };
+
+  name.value = lamp.name;
+  start.value = lamp.start + 1;
+  count.value = lamp.count;
+  writeRange();
+
+  name.addEventListener("input", () => {
+    if (new TextEncoder().encode(name.value).length > NAME_BYTES) {
+      name.value = new TextDecoder().decode(nameBytes(name.value));
+    }
+    lamp.name = name.value;
+    afterStripEdit();
+  });
+  start.addEventListener("input", () => {
+    const value = numberOf(start);
+    lamp.start = Number.isNaN(value) ? NaN : value - 1;
+    writeRange();
+    selectedSlot = slot;
+    afterStripEdit();
+  });
+  count.addEventListener("input", () => {
+    const value = numberOf(count);
+    lamp.count = Number.isInteger(value) && value > 0 ? value : NaN;
+    writeRange();
+    selectedSlot = slot;
+    afterStripEdit();
+  });
+  for (const input of [name, start, count]) input.addEventListener("focus", () => selectSlot(slot, false));
+  remove.addEventListener("click", () => {
+    stripDraft.lamps[slot] = { start: 0, count: 0, name: "" };
+    const left = activeSlots(stripDraft);
+    selectedSlot = left[0] ?? 0;
+    renderStripPanel();
+    renderBar();
+  });
+  return row;
+}
+
+function firstFreeRange(config) {
+  const taken = activeSlots(config)
+    .map((i) => config.lamps[i])
+    .filter((l) => Number.isInteger(l.start) && Number.isInteger(l.count))
+    .sort((a, b) => a.start - b.start);
+  let cursor = 0;
+  let best = null;
+  for (const lamp of taken) {
+    if (lamp.start > cursor && (best === null || lamp.start - cursor > best.count)) {
+      best = { start: cursor, count: lamp.start - cursor };
+    }
+    cursor = Math.max(cursor, lamp.start + lamp.count);
+  }
+  if (config.total > cursor && (best === null || config.total - cursor > best.count)) {
+    best = { start: cursor, count: config.total - cursor };
+  }
+  return best;
+}
+
+function updateAddButton() {
+  const room = activeSlots(stripDraft).length < LAMP_MAX && firstFreeRange(stripDraft) !== null;
+  $("add").disabled = !room;
+  $("add").textContent = room ? "Lamp toevoegen" : activeSlots(stripDraft).length >= LAMP_MAX
+    ? `Maximaal ${LAMP_MAX} lampen` : "Geen vrije segmenten meer";
+}
+
+function renderStripPanel() {
+  $("total").value = Number.isInteger(stripDraft.total) ? stripDraft.total : "";
+  $("rows").replaceChildren(...activeSlots(stripDraft).map(buildStripRow));
+  for (const button of $("rows").querySelectorAll(".remove")) {
+    button.hidden = activeSlots(stripDraft).length <= 1;
+  }
+  updateAddButton();
+  renderLayout();
+  renderStripMessages();
+}
+
+// ---- Tabblad Knoppen -------------------------------------------------------
+
+function isBindingComplete(binding) {
+  return binding.action === NONE || binding.lamps !== 0;
+}
+
+function buttonsOk(config) {
+  return config.bindings.every((gestures) => gestures.every(isBindingComplete));
+}
+
+function functionCount(input) {
+  return buttonsDraft.bindings[input].filter((b) => b.action !== NONE).length;
+}
+
+function functionLabel(input) {
+  const count = functionCount(input);
+  return count === 0 ? "Geen functie" : count === 1 ? "1 functie" : `${count} functies`;
+}
+
+function renderRocker() {
+  const rocker = $("rocker");
+  rocker.replaceChildren();
+  for (const item of INPUTS) {
+    const index = INPUT_INDEX[item.title];
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = item.area;
+    button.setAttribute("aria-pressed", String(selectedInput === index));
+    button.innerHTML = `<strong>${item.place}</strong><span>${item.title}, ${functionLabel(index).toLowerCase()}</span>`;
+    button.addEventListener("click", () => selectInput(index));
+    rocker.append(button);
+  }
+  const both = $("rocker-both");
+  both.replaceChildren();
+  for (const item of BOTH) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.innerHTML = `<strong>${item.place}</strong><span>${item.title}</span>`;
+    button.setAttribute("aria-pressed", String(selectedInput === item.index));
+    button.addEventListener("click", () => selectInput(item.index));
+    both.append(button);
+  }
+}
+
+function selectInput(index) {
+  selectedInput = index;
+  renderRocker();
+  renderGestures();
+}
+
+function afterButtonsEdit(gesture) {
+  renderRocker();
+  renderGestures(gesture);
+  renderBar();
+}
+
+function buildChips(binding, gesture) {
+  const chips = document.createElement("div");
+  chips.className = "chips";
+  chips.setAttribute("role", "group");
+  chips.setAttribute("aria-label", "Welke lampen");
+
+  const all = document.createElement("button");
+  all.type = "button";
+  all.textContent = "Alle lampen";
+  all.setAttribute("aria-pressed", String(binding.lamps === ALL_LAMPS));
+  all.addEventListener("click", () => {
+    binding.lamps = ALL_LAMPS;
+    afterButtonsEdit(gesture);
+  });
+  chips.append(all);
+
+  for (const slot of activeSlots(stripDraft)) {
+    const bit = 1 << slot;
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.textContent = lampName(slot, stripDraft);
+    chip.setAttribute("aria-pressed", String(binding.lamps !== ALL_LAMPS && (binding.lamps & bit) !== 0));
+    chip.addEventListener("click", () => {
+      binding.lamps = binding.lamps === ALL_LAMPS ? bit : binding.lamps ^ bit;
+      afterButtonsEdit(gesture);
+    });
+    chips.append(chip);
+  }
+  return chips;
+}
+
+function buildGesture(gesture) {
+  const binding = buttonsDraft.bindings[selectedInput][gesture];
+  const section = document.createElement("div");
+  section.className = "gesture";
+
+  const heading = document.createElement("h3");
+  heading.textContent = GESTURES[gesture];
+  section.append(heading);
+
+  const select = document.createElement("select");
+  select.setAttribute("aria-label", `Functie bij ${GESTURES[gesture].toLowerCase()}`);
+  select.dataset.gesture = gesture;
+  for (const action of ACTIONS) {
+    if (action.holdOnly && gesture !== LONG && binding.action !== action.value) continue;
+    const option = document.createElement("option");
+    option.value = action.value;
+    option.textContent = gesture === LONG && action.holdLabel ? action.holdLabel : action.label;
+    select.append(option);
+  }
+  select.value = binding.action;
+  select.addEventListener("change", () => {
+    if (binding.action === NONE && binding.lamps === 0) binding.lamps = ALL_LAMPS;
+    binding.action = Number(select.value);
+    afterButtonsEdit(gesture);
+  });
+  section.append(select);
+
+  if (binding.action !== NONE) {
+    section.append(buildChips(binding, gesture));
+    if (binding.lamps === 0) {
+      const message = document.createElement("p");
+      message.className = "message";
+      message.textContent = "Kies minstens één lamp.";
+      section.append(message);
+    }
+  }
+  if (binding.action === BRIGHTNESS) {
+    const row = document.createElement("div");
+    row.className = "value-row";
+    const slider = document.createElement("input");
+    slider.className = "slider";
+    slider.type = "range";
+    slider.min = 1;
+    slider.max = 255;
+    slider.value = binding.value;
+    slider.setAttribute("aria-label", "Helderheid");
+    const out = document.createElement("output");
+    out.textContent = `${Math.round((binding.value / 255) * 100)}%`;
+    slider.addEventListener("input", () => {
+      binding.value = Number(slider.value);
+      out.textContent = `${Math.round((binding.value / 255) * 100)}%`;
+      renderBar();
+    });
+    row.append(slider, out);
+    section.append(row);
+  }
+  return section;
+}
+
+function renderGestures(focusGesture) {
+  $("gestures").replaceChildren(...GESTURES.map((_, g) => buildGesture(g)));
+  if (focusGesture !== undefined) {
+    $("gestures").querySelector(`select[data-gesture="${focusGesture}"]`)?.focus({ preventScroll: true });
+  }
+}
+
+function renderTiming() {
+  $("hold").value = buttonsDraft.holdMs;
+  $("double").value = buttonsDraft.doubleMs;
+  $("hold-out").textContent = `${(buttonsDraft.holdMs / 1000).toLocaleString("nl-NL")} s`;
+  $("double-out").textContent = `${(buttonsDraft.doubleMs / 1000).toLocaleString("nl-NL")} s`;
+}
+
+function renderButtonsPanel() {
+  renderRocker();
+  renderGestures();
+  renderTiming();
+}
+
+// ---- Tabs en onderbalk -----------------------------------------------------
+
+const TABS = ["lampen", "strip", "knoppen"];
+
+function showTab(name, focus = false) {
+  activeTab = name;
+  for (const tab of TABS) {
+    const selected = tab === name;
+    const button = $(`tab-${tab}`);
+    button.setAttribute("aria-selected", String(selected));
+    button.tabIndex = selected ? 0 : -1;
+    $(`panel-${tab}`).hidden = !selected;
+    if (selected && focus) button.focus();
+  }
+  // Lampnamen op Knoppen volgen de nog niet opgeslagen strip-indeling.
+  if (name === "knoppen") renderButtonsPanel();
+  window.scrollTo(0, 0);
+  renderBar();
+}
+
+const barBase = { text: "", problem: false, label: null, quiet: false, enabled: true, controls: false, onClick: null };
+let bar = { ...barBase };
+
+function isConnected() {
+  return demo || characteristics !== null;
+}
+
+function isDirty(tab) {
+  if (tab === "strip") return JSON.stringify(stripDraft) !== JSON.stringify(strip);
+  if (tab === "knoppen") return JSON.stringify(buttonsDraft) !== JSON.stringify(buttons);
+  return false;
+}
+
+function paintBar(state) {
+  $("status").textContent = state.text;
+  $("status").classList.toggle("problem", state.problem);
+  const action = $("action");
+  action.hidden = state.label === null;
+  action.textContent = state.label ?? "";
+  action.disabled = !state.enabled;
+  action.classList.toggle("quiet", state.quiet);
+  action.onclick = state.onClick;
+}
+
+function renderBar() {
+  $("content").inert = !bar.controls;
+  if (isConnected() && activeTab !== "lampen" && saving) {
+    paintBar({ ...barBase, text: "Opslaan…", label: "Bezig", enabled: false });
+    return;
+  }
+  if (isConnected() && isDirty(activeTab)) {
+    const problems = activeTab === "strip" ? stripProblems(stripDraft) : null;
+    let text = "Wijzigingen zijn nog niet opgeslagen.";
+    let valid = true;
+    if (problems && !problems.ok) {
+      text = problems.total ?? "Los eerst de fouten hierboven op.";
+      valid = false;
+    } else if (activeTab === "knoppen" && !buttonsOk(buttonsDraft)) {
+      text = "Kies bij elke functie minstens één lamp.";
+      valid = false;
+    }
+    paintBar({ ...barBase, text, problem: !valid, label: "Opslaan", enabled: valid, onClick: () => saveTab(activeTab) });
+    return;
+  }
+  if (isConnected() && Date.now() < savedUntil) {
+    paintBar({ ...bar, text: "Opgeslagen" });
+    return;
+  }
+  paintBar(bar);
+}
+
+function show(text, options = {}) {
+  bar = { ...barBase, text, ...options };
+  renderBar();
+}
+
+const showIdle = (text = "Niet verbonden", problem = false) =>
+  show(text, { problem, label: "Verbinden", onClick: onConnectClick });
+const showConnected = (text = "Verbonden", problem = false) =>
+  show(text, { problem, label: "Verbreken", quiet: true, controls: true, onClick: onDisconnectClick });
+const showBusy = (text) => show(text, { label: "Bezig", enabled: false });
+
+// ---- Bluetooth: één bewerking tegelijk -------------------------------------
+
+let device = null;
+let characteristics = null;
+let busy = false;
+let reconnecting = false;
+let demo = false;
+let userDisconnected = false;
+let listenedDevice = null;
+
+let queue = Promise.resolve();
+function enqueue(operation) {
+  const result = queue.then(operation, operation);
+  queue = result.catch(() => {});
+  return result;
+}
+
+const pending = new Set();
+let sending = false;
+
+async function sendLamp(slot) {
+  if (demo) return;
+  pending.add(slot);
+  if (sending) return;
+  sending = true;
+  try {
+    while (pending.size > 0 && characteristics) {
+      const [next] = pending;
+      pending.delete(next);
+      const target = characteristics.lamps;
+      const data = encodeLampUpdate(next);
+      await enqueue(() => target.writeValueWithResponse(data));
+      await sleep(SEND_INTERVAL_MS);
+    }
+  } catch (error) {
+    console.warn("Versturen mislukt", error);
+    pending.clear();
+    if (device?.gatt.connected) showConnected("De laatste wijziging is niet aangekomen.", true);
+  } finally {
+    sending = false;
+  }
+}
+
+async function saveTab(tab) {
+  if (saving) return;
+  saving = true;
+  renderBar();
+  try {
+    if (tab === "strip") {
+      const config = clone(stripDraft);
+      if (!demo) {
+        const target = characteristics.strip;
+        const data = encodeStrip(config);
+        await enqueue(() => target.writeValueWithResponse(data));
+      }
+      for (let i = 0; i < LAMP_MAX; i++) {
+        if (config.lamps[i].count === 0) lamps[i].on = false;
+      }
+      strip = config;
+      renderLampsPanel();
+    } else {
+      const config = clone(buttonsDraft);
+      if (!demo) {
+        const target = characteristics.buttons;
+        const data = encodeButtons(config);
+        await enqueue(() => target.writeValueWithResponse(data));
+      }
+      buttons = config;
+    }
+    savedUntil = Date.now() + SAVED_NOTICE_MS;
+    setTimeout(renderBar, SAVED_NOTICE_MS + 50);
+  } catch (error) {
+    console.warn("Opslaan mislukt", error);
+    bar = { ...bar, text: "Opslaan is niet gelukt. Probeer het opnieuw.", problem: true };
+  } finally {
+    saving = false;
+    renderBar();
+  }
+}
+
+// Bij de eerste keer start deze leesactie het koppelen. Tot de pincode is
+// ingevoerd mislukt hij, dus we proberen het zolang de verbinding bestaat.
+async function readUntilPaired(characteristic) {
+  const deadline = Date.now() + PAIRING_TIMEOUT_MS;
+  for (;;) {
+    try {
+      return await characteristic.readValue();
+    } catch (error) {
+      if (!device.gatt.connected || Date.now() > deadline) throw error;
+      await sleep(PAIRING_RETRY_MS);
+    }
+  }
+}
+
+function onLampNotification(event) {
+  const view = event.target.value;
+  if (view.byteLength !== 1 + LAMP_FRAME) return;
+  const slot = view.getUint8(0);
+  if (slot < LAMP_MAX && !pending.has(slot)) {
+    lamps[slot] = decodeLamp(view, 1);
+    renderLamp(slot);
+  }
+}
+
+// Niet-opgeslagen wijzigingen blijven staan als de verbinding even wegviel.
+function adoptDevice(newStrip, newButtons) {
+  const stripEdited = JSON.stringify(stripDraft) !== JSON.stringify(strip);
+  const buttonsEdited = JSON.stringify(buttonsDraft) !== JSON.stringify(buttons);
+  strip = newStrip;
+  buttons = newButtons;
+  if (!stripEdited) stripDraft = clone(strip);
+  if (!buttonsEdited) buttonsDraft = clone(buttons);
+  renderLampsPanel();
+  renderStripPanel();
+  renderButtonsPanel();
+}
+
+async function openConnection() {
+  if (listenedDevice !== device) {
+    device.addEventListener("gattserverdisconnected", onDisconnected);
+    listenedDevice = device;
+  }
+  const server = await withTimeout(device.gatt.connect(), CONNECT_TIMEOUT_MS);
+  const service = await server.getPrimaryService(SERVICE_UUID);
+  const lampsChar = await service.getCharacteristic(LAMPS_UUID);
+  const stripChar = await service.getCharacteristic(STRIP_UUID);
+  const buttonsChar = await service.getCharacteristic(BUTTONS_UUID);
+
+  showBusy("Voer de pincode in als je telefoon erom vraagt.");
+  const lampData = await readUntilPaired(lampsChar);
+  if (lampData.byteLength !== LAMP_MAX * LAMP_FRAME) throw new Error("onverwachte lampgegevens");
+  const stripData = await stripChar.readValue();
+  const buttonData = await buttonsChar.readValue();
+  if (stripData.byteLength !== STRIP_FRAME || buttonData.byteLength !== BUTTON_FRAME) {
+    throw new Error("onverwachte instellingen");
+  }
+
+  for (let i = 0; i < LAMP_MAX; i++) lamps[i] = decodeLamp(lampData, i * LAMP_FRAME);
+  adoptDevice(decodeStrip(stripData), decodeButtons(buttonData));
+
+  lampsChar.addEventListener("characteristicvaluechanged", onLampNotification);
+  await lampsChar.startNotifications();
+  characteristics = { lamps: lampsChar, strip: stripChar, buttons: buttonsChar };
+}
+
+async function connectKnownDevice() {
+  busy = true;
+  userDisconnected = false;
+  showBusy("Verbinden…");
+  try {
+    await openConnection();
+    showConnected();
+    return true;
+  } catch (error) {
+    console.warn("Verbinden mislukt", error);
+    characteristics = null;
+    try { device.gatt.disconnect(); } catch (_) { /* was al los */ }
+    return false;
+  } finally {
+    busy = false;
+  }
+}
+
+async function onConnectClick() {
+  if (busy) return;
+  if (!device) {
+    try {
+      device = await navigator.bluetooth.requestDevice({ filters: [{ services: [SERVICE_UUID] }] });
+    } catch (error) {
+      if (error.name === "NotFoundError") showIdle();
+      else showIdle("Bluetooth is niet beschikbaar. Zet Bluetooth aan en probeer het opnieuw.", true);
+      return;
+    }
+  }
+  if (!(await connectKnownDevice())) {
+    device = null;   // bij de volgende poging mag je opnieuw kiezen
+    showIdle("Koppelen is niet gelukt. Controleer de pincode en of de lampen aanstaan.", true);
+  }
+}
+
+function onDisconnectClick() {
+  if (demo) {
+    demo = false;
+    showUnsupported();
+    return;
+  }
+  userDisconnected = true;
+  device?.gatt.disconnect();
+}
+
+async function reconnect() {
+  reconnecting = true;
+  try {
+    for (const delay of RECONNECT_DELAYS_MS) {
+      showBusy("Verbinding verbroken. Opnieuw verbinden…");
+      await sleep(delay);
+      if (userDisconnected || device === null) return;
+      if (await connectKnownDevice()) return;
+    }
+    showIdle("Verbinding verbroken. Druk op Verbinden als je weer in de buurt bent.", true);
+  } finally {
+    reconnecting = false;
+  }
+}
+
+function onDisconnected() {
+  // Alleen reageren als een werkende verbinding wegvalt, niet op een mislukte poging.
+  const wasConnected = characteristics !== null;
+  characteristics = null;
+  pending.clear();
+  if (!wasConnected) return;
+  if (userDisconnected) showIdle();
+  else reconnect();
+}
+
+function showUnsupported() {
+  const text = window.isSecureContext
+    ? "Deze browser kan geen Bluetooth gebruiken. Open de pagina in Chrome op Android of in Bluefy op iPhone."
+    : "Bluetooth werkt alleen via https. Open de pagina via een https-adres.";
+  show(text, {
+    problem: true,
+    label: "Voorbeeld",
+    quiet: true,
+    onClick: () => {
+      demo = true;
+      show("Voorbeeld zonder lampen", { label: "Stoppen", quiet: true, controls: true, onClick: onDisconnectClick });
+    },
+  });
+}
+
+// ---- Start -----------------------------------------------------------------
+
+function wireStaticControls() {
+  for (const tab of TABS) $(`tab-${tab}`).addEventListener("click", () => showTab(tab));
+  $("content").previousElementSibling.addEventListener("keydown", (event) => {
+    const step = event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;
+    if (step === 0) return;
+    event.preventDefault();
+    showTab(TABS[(TABS.indexOf(activeTab) + step + TABS.length) % TABS.length], true);
+  });
+
+  $("total").addEventListener("input", () => {
+    const value = numberOf($("total"));
+    stripDraft.total = Number.isNaN(value) ? NaN : value;
+    updateAddButton();
+    afterStripEdit();
+  });
+  $("add").addEventListener("click", () => {
+    const slot = stripDraft.lamps.findIndex((l) => l.count === 0);
+    const range = firstFreeRange(stripDraft);
+    if (slot < 0 || range === null) return;
+    Object.assign(stripDraft.lamps[slot], { start: range.start, count: Math.min(range.count, NEW_LAMP_SEGMENTS), name: "" });
+    selectedSlot = slot;
+    renderStripPanel();
+    renderBar();
+  });
+
+  $("hold").addEventListener("input", () => {
+    buttonsDraft.holdMs = Number($("hold").value);
+    renderTiming();
+    renderBar();
+  });
+  $("double").addEventListener("input", () => {
+    buttonsDraft.doubleMs = Number($("double").value);
+    renderTiming();
+    renderBar();
+  });
+}
+
+async function start() {
+  wireStaticControls();
+  renderLampsPanel();
+  renderStripPanel();
+  renderButtonsPanel();
+
+  if ("serviceWorker" in navigator && window.isSecureContext) {
+    navigator.serviceWorker.register("sw.js").catch((error) => console.warn(error));
+  }
+  if (!hasBluetooth) {
+    showUnsupported();
+    return;
+  }
+
+  showIdle();
+  // Eerder gekozen lampen zonder apparaatkiezer opnieuw verbinden, waar dat kan.
+  if (typeof navigator.bluetooth.getDevices === "function") {
+    try {
+      const known = await navigator.bluetooth.getDevices();
+      if (known.length > 0) {
+        device = known[0];
+        if (!(await connectKnownDevice())) showIdle();
+      }
+    } catch (error) {
+      console.warn(error);
+    }
+  }
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible" && device && !device.gatt.connected && !busy && !reconnecting && !userDisconnected) {
+      connectKnownDevice().then((ok) => { if (!ok) showIdle(); });
+    }
+  });
+}
+
+start();
+</script>
+</body>
+</html>

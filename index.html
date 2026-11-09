@@ -55,7 +55,7 @@
   .lamp h2 { margin: 0; font-size: 1.5rem; font-weight: 600; letter-spacing: -.01em; }
   .level { color: var(--quiet); font-size: 1.0625rem; font-variant-numeric: tabular-nums; margin-right: auto; }
 
-  .power {
+  .power, .all-lamps button {
     min-width: 4.5rem; min-height: 2.75rem; padding-inline: 1rem;
     border: 1.5px solid var(--rule); border-radius: 99px;
     background: none; color: var(--quiet);
@@ -104,14 +104,16 @@
   .color input::-webkit-color-swatch { border: 0; border-radius: .375rem; }
 
   /* Tabbladen */
-  .tabs { display: flex; gap: 1.5rem; padding: calc(.5rem + env(safe-area-inset-top)) 1.25rem 0; max-width: 40rem; margin-inline: auto; }
+  .tabs { display: flex; gap: 1.25rem; padding: calc(.5rem + env(safe-area-inset-top)) 1.25rem 0; max-width: 40rem; margin-inline: auto; overflow-x: auto; scrollbar-width: none; }
   .tabs button {
-    min-height: 2.75rem; padding: 0; border: 0; border-bottom: 3px solid transparent;
-    background: none; color: var(--quiet); font: inherit; font-size: 1.125rem; font-weight: 600; cursor: pointer;
+    flex: none; min-height: 2.75rem; padding: 0; border: 0; border-bottom: 3px solid transparent;
+    background: none; color: var(--quiet); font: inherit; font-size: 1.0625rem; font-weight: 600; cursor: pointer;
   }
   .tabs button[aria-selected="true"] { color: var(--text); border-bottom-color: var(--text); }
   .panel[hidden] { display: none; }
-  #panel-lampen { display: grid; grid-auto-rows: minmax(min-content, 1fr); min-height: 100%; }
+  #panel-lampen { display: grid; grid-template-rows: auto; grid-auto-rows: minmax(min-content, 1fr); min-height: 100%; }
+  .all-lamps { display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding: 1rem 1.25rem .25rem; }
+  .all-lamps h2 { margin: 0; font-size: 1.0625rem; font-weight: 600; color: var(--quiet); }
 
   /* Strip-indeling */
   .layout { position: relative; height: 4.5rem; background: var(--strip); margin-top: 1rem; overflow: hidden; }
@@ -189,7 +191,54 @@
   .value-row output { flex: none; width: 3.25rem; text-align: right; color: var(--quiet); font-variant-numeric: tabular-nums; }
   .timing { padding: 1rem 1.25rem 1.5rem; border-top: 1.5px solid var(--rule); display: flex; flex-direction: column; gap: .5rem; }
   .timing label { font-weight: 600; }
+  .timing .hint { margin: 0; color: var(--quiet); }
   input.slider { flex: 1; min-width: 0; height: 2.75rem; margin: 0; accent-color: var(--text); touch-action: pan-y; }
+
+  /* Schakelaars */
+  .switch-list { padding: 1rem 1.25rem 0; }
+  .empty { margin: 0; padding: 1.25rem; color: var(--quiet); line-height: 1.4; }
+  .switch-head { display: flex; flex-direction: column; gap: .25rem; padding: 1rem 1.25rem 0; }
+  .switch-head .hint { color: var(--quiet); }
+  .switch-add { display: flex; flex-direction: column; gap: .75rem; padding: 1rem 1.25rem 1.5rem; }
+  .switch-add h3 { margin: 0; font-size: 1.125rem; }
+  .switch-add .hint { margin: 0; color: var(--quiet); }
+  .switch-add .hint.problem { color: var(--problem); }
+  .switch-add video { width: 100%; max-height: 18rem; object-fit: cover; border-radius: .625rem; background: #000; }
+  .field { display: flex; flex-direction: column; gap: .375rem; font-weight: 600; }
+  input.text, .field textarea, .field select {
+    min-height: 2.75rem; padding: .5rem .625rem; border: 1.5px solid var(--rule); border-radius: .625rem;
+    background: var(--room); color: var(--text); font: inherit; font-weight: 400;
+  }
+  input.text.name { font-size: 1.125rem; font-weight: 600; }
+  .field textarea { resize: vertical; font-family: ui-monospace, monospace; font-size: .875rem; }
+  .actions { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+  button.primary {
+    min-height: 3rem; padding-inline: 1.375rem; border: 0; border-radius: 99px;
+    background: var(--text); color: var(--room); font: inherit; font-weight: 600; cursor: pointer;
+  }
+  button.primary:disabled { opacity: .5; cursor: default; }
+  .gesture select.scene-pick { margin-top: .25rem; }
+
+  /* Scènes */
+  .scene-list { display: flex; flex-direction: column; }
+  .scene { display: flex; align-items: stretch; border-bottom: 1.5px solid var(--rule); }
+  .scene-call {
+    flex: 1; display: flex; flex-direction: column; gap: .5rem; min-height: 4.5rem; padding: 1rem 1.25rem;
+    border: 0; background: none; color: var(--text); font: inherit; text-align: left; cursor: pointer;
+  }
+  .scene-call strong { font-size: 1.25rem; font-weight: 600; }
+  .scene-call:active { background: var(--strip); }
+  .swatches { display: flex; gap: 3px; }
+  .swatch { width: 2.25rem; height: .625rem; border-radius: 2px; background: var(--strip); }
+  .scene .text-button { padding-inline: 1.25rem; }
+  .scene-edit { display: flex; flex-direction: column; gap: .75rem; padding: 1rem 1.25rem 1.5rem; border-bottom: 1.5px solid var(--rule); }
+  .scene-edit h3 { margin: 0; font-size: 1.125rem; }
+  .scene-lamp { display: flex; align-items: center; gap: .75rem; min-height: 2.75rem; }
+  .scene-lamp input { width: 1.375rem; height: 1.375rem; accent-color: var(--text); }
+  .scene-lamp .swatch { flex: none; }
+  .scene-lamp .what { color: var(--quiet); margin-left: auto; font-variant-numeric: tabular-nums; }
+  .scene-edit .message { margin: 0; color: var(--problem); }
+  .scene-edit > .text-button, .switch-add > .text-button { align-self: flex-start; padding-inline: 0; }
 
   [hidden] { display: none !important; }
   :is(button, input):focus-visible { outline: 3px solid var(--text); outline-offset: 2px; }
@@ -221,11 +270,19 @@
 <h1 class="visually-hidden">Lampen</h1>
 <nav class="tabs" role="tablist" aria-label="Onderdelen">
   <button role="tab" id="tab-lampen" aria-controls="panel-lampen" aria-selected="true" type="button">Lampen</button>
-  <button role="tab" id="tab-strip" aria-controls="panel-strip" aria-selected="false" tabindex="-1" type="button">Strip</button>
+  <button role="tab" id="tab-scenes" aria-controls="panel-scenes" aria-selected="false" tabindex="-1" type="button">Scènes</button>
   <button role="tab" id="tab-knoppen" aria-controls="panel-knoppen" aria-selected="false" tabindex="-1" type="button">Knoppen</button>
+  <button role="tab" id="tab-strip" aria-controls="panel-strip" aria-selected="false" tabindex="-1" type="button">Strip</button>
 </nav>
 <main id="content" inert>
   <section class="panel" id="panel-lampen" role="tabpanel" aria-labelledby="tab-lampen"></section>
+
+  <section class="panel" id="panel-scenes" role="tabpanel" aria-labelledby="tab-scenes" hidden>
+    <div class="scene-list" id="scene-list"></div>
+    <p class="empty" id="scene-empty">Nog geen scènes. Zet de lampen zoals je wilt op het tabblad Lampen en sla die stand hier op.</p>
+    <div class="scene-edit" id="scene-edit" hidden></div>
+    <div class="add"><button class="text-button" id="scene-new" type="button">Huidige stand opslaan als scène</button></div>
+  </section>
 
   <section class="panel" id="panel-strip" role="tabpanel" aria-labelledby="tab-strip" hidden>
     <div class="layout" id="layout" role="group" aria-label="Indeling van de strip"></div>
@@ -234,20 +291,50 @@
       <label for="total">Lengte van de strip</label>
       <input class="num" id="total" type="number" min="1" max="1000" inputmode="numeric">
     </div>
+    <div class="timing">
+      <label for="fade">Overgang tussen standen <span id="fade-out"></span></label>
+      <input class="slider" id="fade" type="range" min="0" max="100" step="1">
+      <p class="hint">Bij dimmen en schuiven is de overgang korter, zodat de lamp je hand volgt.</p>
+    </div>
     <div class="rows" id="rows"></div>
     <div class="add"><button class="text-button" id="add" type="button">Lamp toevoegen</button></div>
   </section>
 
   <section class="panel" id="panel-knoppen" role="tabpanel" aria-labelledby="tab-knoppen" hidden>
-    <div class="rocker" id="rocker" role="group" aria-label="Kies een knop"></div>
-    <div class="rocker-both" id="rocker-both" role="group" aria-label="Twee knoppen tegelijk"></div>
-    <div class="gestures" id="gestures"></div>
-    <div class="timing">
-      <label for="hold">Lang indrukken vanaf <span id="hold-out"></span></label>
-      <input class="slider" id="hold" type="range" min="300" max="1500" step="50">
-      <label for="double">Tijd voor dubbel drukken <span id="double-out"></span></label>
-      <input class="slider" id="double" type="range" min="200" max="800" step="50">
-      <p class="hint">Een knop met een functie voor dubbel drukken reageert op één keer drukken pas na deze tijd.</p>
+    <div class="chips switch-list" id="switch-list" role="group" aria-label="Schakelaars"></div>
+    <p class="empty" id="switch-empty" hidden>Nog geen schakelaars. Voeg er een toe met de QR-code op de module.</p>
+
+    <div class="switch-add" id="switch-add" hidden>
+      <h3>Schakelaar toevoegen</h3>
+      <p class="hint">Scan de QR-code op de module, of plak de tekst die je telefoon uit de QR-code leest.</p>
+      <button class="text-button" id="qr-scan" type="button">QR-code scannen met de camera</button>
+      <video id="qr-video" playsinline muted hidden></video>
+      <label class="field">QR-tekst <textarea id="qr-text" rows="3" autocomplete="off" spellcheck="false"></textarea></label>
+      <p class="hint" id="qr-result" role="status"></p>
+      <label class="field">Naam <input class="text" id="new-switch-name" type="text" autocomplete="off" placeholder="Bijvoorbeeld Woonkamer"></label>
+      <label class="field">Model <select id="new-switch-model"></select></label>
+      <div class="actions">
+        <button class="primary" id="switch-add-confirm" type="button">Toevoegen</button>
+        <button class="text-button" id="switch-add-cancel" type="button">Annuleren</button>
+      </div>
+    </div>
+
+    <div id="switch-edit" hidden>
+      <div class="switch-head">
+        <input class="text name" id="switch-name" type="text" autocomplete="off" aria-label="Naam van de schakelaar">
+        <span class="hint" id="switch-id"></span>
+      </div>
+      <div class="rocker" id="rocker" role="group" aria-label="Kies een knop"></div>
+      <div class="rocker-both" id="rocker-both" role="group" aria-label="Twee knoppen tegelijk"></div>
+      <div class="gestures" id="gestures"></div>
+      <div class="timing">
+        <label for="hold">Lang indrukken vanaf <span id="hold-out"></span></label>
+        <input class="slider" id="hold" type="range" min="300" max="1500" step="50">
+        <label for="double">Tijd voor dubbel drukken <span id="double-out"></span></label>
+        <input class="slider" id="double" type="range" min="200" max="800" step="50">
+        <p class="hint">Een knop met een functie voor dubbel drukken reageert op één keer drukken pas na deze tijd.</p>
+      </div>
+      <div class="add"><button class="text-button" id="switch-remove" type="button">Schakelaar verwijderen</button></div>
     </div>
   </section>
 </main>
@@ -288,7 +375,8 @@
 const SERVICE_UUID = "6e7b1a50-4c3e-4f2a-9d11-7a5c3e0b2f10";
 const LAMPS_UUID = "6e7b1a50-4c3e-4f2a-9d11-7a5c3e0b2f11";
 const STRIP_UUID = "6e7b1a50-4c3e-4f2a-9d11-7a5c3e0b2f12";
-const BUTTONS_UUID = "6e7b1a50-4c3e-4f2a-9d11-7a5c3e0b2f13";
+const SWITCHES_UUID = "6e7b1a50-4c3e-4f2a-9d11-7a5c3e0b2f13";
+const SCENES_UUID = "6e7b1a50-4c3e-4f2a-9d11-7a5c3e0b2f14";
 
 const LAMP_MAX = 8;
 const KELVIN_MIN = 3000;
@@ -297,6 +385,10 @@ const STRIP_MAX = 1000;
 const NAME_BYTES = 20;
 const LAMP_FRAME = 7;
 const STRIP_FRAME = 4 + LAMP_MAX * 24;
+const STRIP_VERSION = 2;
+const FADE_UNIT_MS = 50;
+const FADE_MAX = 100;
+const FADE_DEFAULT = 8;
 const INPUT_COUNT = 6;
 const GESTURE_COUNT = 3;
 const BUTTON_FRAME = 4 + INPUT_COUNT * GESTURE_COUNT * 4;
@@ -305,7 +397,17 @@ const ALL_LAMPS = 0xff;
 const NEW_LAMP_SEGMENTS = 20;
 const DENSE_ABOVE = 100;  // bij meer segmenten geen losse vakjes tekenen
 
-const SEND_INTERVAL_MS = 66;
+// Schakelaars en scènes: opdracht | plek | gegevens. Lezen na OP_SELECT geeft plek | in gebruik | gegevens.
+const SWITCH_MAX = 8;
+const SCENE_MAX = 8;
+const KEY_BYTES = 16;
+const SWITCH_WIRE = 4 + 1 + NAME_BYTES + KEY_BYTES + BUTTON_FRAME;
+const SCENE_WIRE = NAME_BYTES + LAMP_MAX * LAMP_FRAME;
+const OP_SELECT = 0, OP_ACTIVATE = 1, OP_SAVE = 2, OP_DELETE = 3;
+const OP_HEADER = 2;
+const SCENE_FLAG_INCLUDED = 0x80;
+
+const SEND_INTERVAL_MS = 50;
 const CONNECT_TIMEOUT_MS = 15000;
 const PAIRING_TIMEOUT_MS = 90000;
 const PAIRING_RETRY_MS = 1500;
@@ -332,7 +434,8 @@ const BOTH = [
 const GESTURES = ["Eén keer drukken", "Dubbel drukken", "Lang indrukken"];
 const LONG = 2;
 
-const NONE = 0, BRIGHTNESS = 4, ALTERNATE = 7;
+const NONE = 0, BRIGHTNESS = 4, ALTERNATE = 7, SCENE = 10;
+const MODELS = ["PTM 216Z", "PTM 215ZE"];
 const ACTIONS = [
   { value: 0, label: "Niets" },
   { value: 1, label: "Aan of uit" },
@@ -344,6 +447,7 @@ const ACTIONS = [
   { value: 7, label: "Om en om dimmen", holdLabel: "Om en om feller en dimmer", holdOnly: true },
   { value: 8, label: "Stap warmer", holdLabel: "Warmer zolang je vasthoudt" },
   { value: 9, label: "Stap koeler", holdLabel: "Koeler zolang je vasthoudt" },
+  { value: 10, label: "Scène oproepen" },
 ];
 
 const hasBluetooth = "bluetooth" in navigator;
@@ -365,7 +469,7 @@ const defaultLamp = () => ({ on: false, mode: "white", brightness: 255, kelvin: 
 function defaultStrip() {
   const lamps = Array.from({ length: LAMP_MAX }, () => ({ start: 0, count: 0, name: "" }));
   for (let i = 0; i < 3; i++) Object.assign(lamps[i], { start: i * 20, count: 20 });
-  return { total: 60, lamps };
+  return { total: 60, fadeUnits: FADE_DEFAULT, lamps };
 }
 
 function defaultButtons() {
@@ -381,13 +485,19 @@ function defaultButtons() {
 const lamps = Array.from({ length: LAMP_MAX }, defaultLamp);
 let strip = defaultStrip();
 let stripDraft = clone(strip);
-let buttons = defaultButtons();
-let buttonsDraft = clone(buttons);
+// Per plek null of { sourceId, model, name, buttons }. De sleutel kent alleen de ESP.
+let switches = Array(SWITCH_MAX).fill(null);
+let switchesDraft = clone(switches);
+// Per plek null of { name, lamps (bitmasker), states: [lamp × LAMP_MAX] }.
+let scenes = Array(SCENE_MAX).fill(null);
 
 const lampViews = [];
 let activeTab = "lampen";
 let selectedSlot = 0;
+let selectedSwitch = 0;
 let selectedInput = 0;
+let addingSwitch = false;
+let editingScene = null;   // { index, scene } tijdens bewerken
 let saving = false;
 let savedUntil = 0;
 
@@ -395,6 +505,9 @@ let savedUntil = 0;
 const isActive = (slot, config = strip) => config.lamps[slot].count !== 0;
 const lampName = (slot, config = strip) => config.lamps[slot].name || `Lamp ${slot + 1}`;
 const activeSlots = (config = strip) => [...Array(LAMP_MAX).keys()].filter((i) => isActive(i, config));
+const switchName = (index, config = switchesDraft) => config[index]?.name || `Schakelaar ${index + 1}`;
+const sceneName = (index) => scenes[index]?.name || `Scène ${index + 1}`;
+const usedIndexes = (list) => [...list.keys()].filter((i) => list[i] !== null);
 
 // ---- Berichtformaat --------------------------------------------------------
 
@@ -437,10 +550,25 @@ function nameBytes(text) {
   return encoder.encode(trimmed);
 }
 
+function decodeName(view, at) {
+  const raw = new Uint8Array(view.buffer, view.byteOffset + at, NAME_BYTES);
+  const end = raw.indexOf(0);
+  return new TextDecoder().decode(end < 0 ? raw : raw.subarray(0, end));
+}
+
+// Houdt de naam binnen NAME_BYTES terwijl je typt.
+function limitName(input) {
+  if (new TextEncoder().encode(input.value).length > NAME_BYTES) {
+    input.value = new TextDecoder().decode(nameBytes(input.value));
+  }
+  return input.value;
+}
+
 function encodeStrip(config) {
   const out = new Uint8Array(STRIP_FRAME);
   const view = new DataView(out.buffer);
-  out[0] = WIRE_VERSION;
+  out[0] = STRIP_VERSION;
+  out[1] = config.fadeUnits;
   view.setUint16(2, config.total, true);
   config.lamps.forEach((lamp, i) => {
     const at = 4 + i * 24;
@@ -452,27 +580,24 @@ function encodeStrip(config) {
 }
 
 function decodeStrip(view) {
-  const decoder = new TextDecoder();
-  const config = { total: view.getUint16(2, true), lamps: [] };
+  const version = view.getUint8(0);
+  const config = { total: view.getUint16(2, true), fadeUnits: version === 1 ? FADE_DEFAULT : view.getUint8(1), lamps: [] };
   for (let i = 0; i < LAMP_MAX; i++) {
     const at = 4 + i * 24;
-    const raw = new Uint8Array(view.buffer, view.byteOffset + at + 4, NAME_BYTES);
-    const end = raw.indexOf(0);
     config.lamps.push({
       start: view.getUint16(at, true),
       count: view.getUint16(at + 2, true),
-      name: decoder.decode(end < 0 ? raw : raw.subarray(0, end)),
+      name: decodeName(view, at + 4),
     });
   }
   return config;
 }
 
-function encodeButtons(config) {
-  const out = new Uint8Array(BUTTON_FRAME);
-  out[0] = WIRE_VERSION;
-  out[1] = Math.round(config.holdMs / 10);
-  out[2] = Math.round(config.doubleMs / 10);
-  let at = 4;
+function encodeButtons(config, out = new Uint8Array(BUTTON_FRAME), offset = 0) {
+  out[offset] = WIRE_VERSION;
+  out[offset + 1] = Math.round(config.holdMs / 10);
+  out[offset + 2] = Math.round(config.doubleMs / 10);
+  let at = offset + 4;
   for (const gestures of config.bindings) {
     for (const binding of gestures) {
       out[at] = binding.action;
@@ -484,19 +609,92 @@ function encodeButtons(config) {
   return out;
 }
 
-function decodeButtons(view) {
-  const config = { holdMs: view.getUint8(1) * 10, doubleMs: view.getUint8(2) * 10, bindings: [] };
-  let at = 4;
+function decodeButtons(view, offset = 0) {
+  const config = { holdMs: view.getUint8(offset + 1) * 10, doubleMs: view.getUint8(offset + 2) * 10, bindings: [] };
+  let at = offset + 4;
   for (let input = 0; input < INPUT_COUNT; input++) {
     const gestures = [];
     for (let gesture = 0; gesture < GESTURE_COUNT; gesture++) {
-      gestures.push({ action: view.getUint8(at), lamps: view.getUint8(at + 1), value: view.getUint8(at + 2) || 128 });
+      gestures.push({ action: view.getUint8(at), lamps: view.getUint8(at + 1), value: view.getUint8(at + 2) });
       at += 4;
     }
     config.bindings.push(gestures);
   }
   return config;
 }
+
+// Schakelaar: bron-ID LE(4) | model | naam(20) | sleutel(16) | knopfuncties.
+const SWITCH_AT_MODEL = 4, SWITCH_AT_NAME = 5, SWITCH_AT_KEY = 25, SWITCH_AT_BUTTONS = 41;
+
+function encodeSwitchSave(index, item, key = null) {
+  const out = new Uint8Array(OP_HEADER + SWITCH_WIRE);
+  const view = new DataView(out.buffer);
+  out[0] = OP_SAVE;
+  out[1] = index;
+  view.setUint32(OP_HEADER, item.sourceId, true);
+  out[OP_HEADER + SWITCH_AT_MODEL] = item.model;
+  out.set(nameBytes(item.name), OP_HEADER + SWITCH_AT_NAME);
+  if (key) out.set(key, OP_HEADER + SWITCH_AT_KEY);  // leeg = de ESP houdt de bestaande sleutel
+  encodeButtons(item.buttons, out, OP_HEADER + SWITCH_AT_BUTTONS);
+  return out;
+}
+
+function decodeSwitchRecord(view) {
+  if (view.byteLength !== OP_HEADER + SWITCH_WIRE) throw new Error("onverwachte schakelaargegevens");
+  if (view.getUint8(1) === 0) return null;
+  return {
+    sourceId: view.getUint32(OP_HEADER, true),
+    model: view.getUint8(OP_HEADER + SWITCH_AT_MODEL),
+    name: decodeName(view, OP_HEADER + SWITCH_AT_NAME),
+    buttons: decodeButtons(view, OP_HEADER + SWITCH_AT_BUTTONS),
+  };
+}
+
+// Scène: naam(20) | per lamp de 7 lampbytes, met in de vlaggen bit 7 = doet mee.
+function encodeSceneSave(index, scene) {
+  const out = new Uint8Array(OP_HEADER + SCENE_WIRE);
+  out[0] = OP_SAVE;
+  out[1] = index;
+  out.set(nameBytes(scene.name), OP_HEADER);
+  scene.states.forEach((lamp, i) => {
+    const at = OP_HEADER + NAME_BYTES + i * LAMP_FRAME;
+    encodeLamp(lamp, out, at);
+    if (scene.lamps & (1 << i)) out[at] |= SCENE_FLAG_INCLUDED;
+  });
+  return out;
+}
+
+function decodeSceneRecord(view) {
+  if (view.byteLength !== OP_HEADER + SCENE_WIRE) throw new Error("onverwachte scènegegevens");
+  if (view.getUint8(1) === 0) return null;
+  const scene = { name: decodeName(view, OP_HEADER), lamps: 0, states: [] };
+  for (let i = 0; i < LAMP_MAX; i++) {
+    const at = OP_HEADER + NAME_BYTES + i * LAMP_FRAME;
+    if (view.getUint8(at) & SCENE_FLAG_INCLUDED) scene.lamps |= 1 << i;
+    const lamp = decodeLamp(view, at);
+    scene.states.push(lamp);
+  }
+  return scene;
+}
+
+const opFrame = (op, index) => new Uint8Array([op, index]);
+
+// QR-code op de module, bijvoorbeeld 30PS3271-A216+...+30S0159169A+Z<32 hex>+...
+function parseQr(text) {
+  const result = { sourceId: null, key: null, model: null };
+  for (const field of text.trim().split(/[+\s]+/)) {
+    if (/^30S[0-9a-f]{8}$/i.test(field)) {
+      result.sourceId = parseInt(field.slice(3), 16);
+    } else if (/^Z[0-9a-f]{32}$/i.test(field)) {
+      result.key = Uint8Array.from(field.slice(1).match(/../g), (h) => parseInt(h, 16));
+    } else if (/^30P/i.test(field)) {
+      result.model = /A215/i.test(field) ? 1 : /A216/i.test(field) ? 0 : null;
+    }
+  }
+  return result;
+}
+
+const hexId = (id) => id.toString(16).toUpperCase().padStart(8, "0");
 
 // ---- Tabblad Lampen --------------------------------------------------------
 
@@ -540,7 +738,23 @@ function renderLamp(slot) {
 function changeLamp(slot, patch) {
   Object.assign(lamps[slot], patch);
   renderLamp(slot);
+  renderAllButton();
   sendLamp(slot);
+}
+
+const anyLampOn = () => activeSlots().some((slot) => lamps[slot].on);
+
+function renderAllButton() {
+  const button = $("all-power");
+  if (!button) return;
+  button.textContent = anyLampOn() ? "Alles uit" : "Alles aan";
+}
+
+function toggleAll() {
+  const on = !anyLampOn();
+  for (const slot of activeSlots()) {
+    if (lamps[slot].on !== on) changeLamp(slot, { on });
+  }
 }
 
 function buildLamp(slot) {
@@ -588,9 +802,14 @@ function buildLamp(slot) {
 }
 
 function renderLampsPanel() {
-  $("panel-lampen").replaceChildren();
+  const head = document.createElement("div");
+  head.className = "all-lamps";
+  head.innerHTML = `<h2>Alle lampen</h2><button id="all-power" type="button"></button>`;
+  head.querySelector("button").addEventListener("click", toggleAll);
+  $("panel-lampen").replaceChildren(head);
   lampViews.length = 0;
   activeSlots().forEach(buildLamp);
+  renderAllButton();
 }
 
 // ---- Tabblad Strip ---------------------------------------------------------
@@ -720,10 +939,7 @@ function buildStripRow(slot) {
   writeRange();
 
   name.addEventListener("input", () => {
-    if (new TextEncoder().encode(name.value).length > NAME_BYTES) {
-      name.value = new TextDecoder().decode(nameBytes(name.value));
-    }
-    lamp.name = name.value;
+    lamp.name = limitName(name);
     afterStripEdit();
   });
   start.addEventListener("input", () => {
@@ -777,8 +993,16 @@ function updateAddButton() {
     ? `Maximaal ${LAMP_MAX} lampen` : "Geen vrije segmenten meer";
 }
 
+const seconds = (ms) => `${(ms / 1000).toLocaleString("nl-NL")} s`;
+
+function renderFade() {
+  $("fade").value = stripDraft.fadeUnits;
+  $("fade-out").textContent = stripDraft.fadeUnits === 0 ? "uit" : seconds(stripDraft.fadeUnits * FADE_UNIT_MS);
+}
+
 function renderStripPanel() {
   $("total").value = Number.isInteger(stripDraft.total) ? stripDraft.total : "";
+  renderFade();
   $("rows").replaceChildren(...activeSlots(stripDraft).map(buildStripRow));
   for (const button of $("rows").querySelectorAll(".remove")) {
     button.hidden = activeSlots(stripDraft).length <= 1;
@@ -790,16 +1014,20 @@ function renderStripPanel() {
 
 // ---- Tabblad Knoppen -------------------------------------------------------
 
+const draftButtons = () => switchesDraft[selectedSwitch].buttons;
+
 function isBindingComplete(binding) {
-  return binding.action === NONE || binding.lamps !== 0;
+  if (binding.action === NONE) return true;
+  if (binding.action === SCENE) return scenes[binding.value] != null;
+  return binding.lamps !== 0;
 }
 
-function buttonsOk(config) {
-  return config.bindings.every((gestures) => gestures.every(isBindingComplete));
+function switchesOk() {
+  return switchesDraft.every((item) => item === null || item.buttons.bindings.every((gestures) => gestures.every(isBindingComplete)));
 }
 
 function functionCount(input) {
-  return buttonsDraft.bindings[input].filter((b) => b.action !== NONE).length;
+  return draftButtons().bindings[input].filter((b) => b.action !== NONE).length;
 }
 
 function functionLabel(input) {
@@ -875,8 +1103,39 @@ function buildChips(binding, gesture) {
   return chips;
 }
 
+function buildScenePick(binding, gesture) {
+  const used = usedIndexes(scenes);
+  if (used.length === 0) {
+    const message = document.createElement("p");
+    message.className = "message";
+    message.textContent = "Maak eerst een scène op het tabblad Scènes.";
+    return message;
+  }
+  const pick = document.createElement("select");
+  pick.className = "scene-pick";
+  pick.setAttribute("aria-label", "Welke scène");
+  if (scenes[binding.value] == null) {
+    const missing = document.createElement("option");
+    missing.value = binding.value;
+    missing.textContent = "Kies een scène";
+    pick.append(missing);
+  }
+  for (const index of used) {
+    const option = document.createElement("option");
+    option.value = index;
+    option.textContent = sceneName(index);
+    pick.append(option);
+  }
+  pick.value = binding.value;
+  pick.addEventListener("change", () => {
+    binding.value = Number(pick.value);
+    afterButtonsEdit(gesture);
+  });
+  return pick;
+}
+
 function buildGesture(gesture) {
-  const binding = buttonsDraft.bindings[selectedInput][gesture];
+  const binding = draftButtons().bindings[selectedInput][gesture];
   const section = document.createElement("div");
   section.className = "gesture";
 
@@ -896,13 +1155,19 @@ function buildGesture(gesture) {
   }
   select.value = binding.action;
   select.addEventListener("change", () => {
+    const action = Number(select.value);
     if (binding.action === NONE && binding.lamps === 0) binding.lamps = ALL_LAMPS;
-    binding.action = Number(select.value);
+    // value betekent per actie iets anders: helderheid of scènenummer.
+    if (action === SCENE) binding.value = usedIndexes(scenes)[0] ?? 0;
+    else if (action === BRIGHTNESS && (binding.action === SCENE || binding.value === 0)) binding.value = 128;
+    binding.action = action;
     afterButtonsEdit(gesture);
   });
   section.append(select);
 
-  if (binding.action !== NONE) {
+  if (binding.action === SCENE) {
+    section.append(buildScenePick(binding, gesture));
+  } else if (binding.action !== NONE) {
     section.append(buildChips(binding, gesture));
     if (binding.lamps === 0) {
       const message = document.createElement("p");
@@ -942,23 +1207,425 @@ function renderGestures(focusGesture) {
 }
 
 function renderTiming() {
-  $("hold").value = buttonsDraft.holdMs;
-  $("double").value = buttonsDraft.doubleMs;
-  $("hold-out").textContent = `${(buttonsDraft.holdMs / 1000).toLocaleString("nl-NL")} s`;
-  $("double-out").textContent = `${(buttonsDraft.doubleMs / 1000).toLocaleString("nl-NL")} s`;
+  const config = draftButtons();
+  $("hold").value = config.holdMs;
+  $("double").value = config.doubleMs;
+  $("hold-out").textContent = seconds(config.holdMs);
+  $("double-out").textContent = seconds(config.doubleMs);
+}
+
+function renderSwitchList() {
+  const list = $("switch-list");
+  list.replaceChildren();
+  for (const index of usedIndexes(switchesDraft)) {
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.textContent = switchName(index);
+    chip.setAttribute("aria-pressed", String(!addingSwitch && index === selectedSwitch));
+    chip.addEventListener("click", () => {
+      stopAddSwitch(false);
+      selectedSwitch = index;
+      renderButtonsPanel();
+    });
+    list.append(chip);
+  }
+  const add = document.createElement("button");
+  add.type = "button";
+  add.textContent = "+ Toevoegen";
+  add.disabled = usedIndexes(switchesDraft).length >= SWITCH_MAX;
+  add.setAttribute("aria-pressed", String(addingSwitch));
+  add.addEventListener("click", startAddSwitch);
+  list.append(add);
+}
+
+function renderSwitchHead() {
+  const item = switchesDraft[selectedSwitch];
+  const name = $("switch-name");
+  if (document.activeElement !== name) name.value = item.name;
+  name.placeholder = `Schakelaar ${selectedSwitch + 1}`;
+  $("switch-id").textContent = `${MODELS[item.model] ?? "Onbekend model"}, ID ${hexId(item.sourceId)}`;
 }
 
 function renderButtonsPanel() {
-  renderRocker();
-  renderGestures();
-  renderTiming();
+  const used = usedIndexes(switchesDraft);
+  if (switchesDraft[selectedSwitch] === null && used.length > 0) selectedSwitch = used[0];
+  const editing = !addingSwitch && switchesDraft[selectedSwitch] !== null;
+  renderSwitchList();
+  $("switch-add").hidden = !addingSwitch;
+  $("switch-empty").hidden = addingSwitch || used.length > 0;
+  $("switch-edit").hidden = !editing;
+  if (editing) {
+    renderSwitchHead();
+    renderRocker();
+    renderGestures();
+    renderTiming();
+  }
+}
+
+// ---- Schakelaar toevoegen en verwijderen -----------------------------------
+
+let qrStream = null;
+let qrTimer = null;
+let switchBusy = false;
+const canScan = "BarcodeDetector" in window && !!navigator.mediaDevices?.getUserMedia;
+
+function freeSwitchIndex() {
+  return [...Array(SWITCH_MAX).keys()].find((i) => switches[i] === null && switchesDraft[i] === null) ?? -1;
+}
+
+function startAddSwitch() {
+  addingSwitch = true;
+  $("qr-text").value = "";
+  $("new-switch-name").value = "";
+  $("new-switch-model").value = 0;
+  $("qr-scan").hidden = !canScan;
+  renderQrResult();
+  renderButtonsPanel();
+  renderBar();
+}
+
+function stopAddSwitch(render = true) {
+  stopQrScan();
+  if (!addingSwitch) return;
+  addingSwitch = false;
+  if (render) {
+    renderButtonsPanel();
+    renderBar();
+  }
+}
+
+function renderQrResult(problem = null) {
+  const text = $("qr-text").value;
+  const qr = parseQr(text);
+  const complete = qr.sourceId !== null && qr.key !== null;
+  const duplicate = complete && switches.some((item) => item?.sourceId === qr.sourceId);
+  if (qr.model !== null) $("new-switch-model").value = qr.model;
+
+  let message = "";
+  if (problem) message = problem;
+  else if (duplicate) message = "Deze schakelaar staat er al in.";
+  else if (complete) message = `Gevonden: ID ${hexId(qr.sourceId)}, sleutel herkend.`;
+  else if (text.trim() !== "") message = "Hierin staan geen ID (30S…) en sleutel (Z…) van een PTM-module.";
+  $("qr-result").textContent = message;
+  $("qr-result").classList.toggle("problem", problem !== null || duplicate || (!complete && text.trim() !== ""));
+  $("switch-add-confirm").disabled = !complete || duplicate || switchBusy || freeSwitchIndex() < 0;
+}
+
+async function startQrScan() {
+  if (qrStream) return;
+  try {
+    const supported = await BarcodeDetector.getSupportedFormats();
+    const formats = ["qr_code", "data_matrix"].filter((f) => supported.includes(f));
+    const detector = new BarcodeDetector({ formats });
+    qrStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+    const video = $("qr-video");
+    video.srcObject = qrStream;
+    video.hidden = false;
+    await video.play();
+    const scan = async () => {
+      if (!qrStream) return;
+      try {
+        const hit = (await detector.detect(video)).find((code) => parseQr(code.rawValue).key !== null);
+        if (hit) {
+          $("qr-text").value = hit.rawValue;
+          stopQrScan();
+          renderQrResult();
+          $("new-switch-name").focus();
+          return;
+        }
+      } catch (_) { /* volgend beeld */ }
+      qrTimer = setTimeout(scan, 250);
+    };
+    scan();
+  } catch (error) {
+    console.warn("Scannen mislukt", error);
+    stopQrScan();
+    renderQrResult("De camera is niet beschikbaar. Plak de tekst uit de QR-code hieronder.");
+  }
+}
+
+function stopQrScan() {
+  clearTimeout(qrTimer);
+  qrStream?.getTracks().forEach((track) => track.stop());
+  qrStream = null;
+  const video = $("qr-video");
+  video.srcObject = null;
+  video.hidden = true;
+}
+
+async function confirmAddSwitch() {
+  const qr = parseQr($("qr-text").value);
+  const index = freeSwitchIndex();
+  if (qr.sourceId === null || qr.key === null || index < 0 || switchBusy) return;
+  const item = {
+    sourceId: qr.sourceId,
+    model: Number($("new-switch-model").value),
+    name: new TextDecoder().decode(nameBytes($("new-switch-name").value.trim())),
+    buttons: defaultButtons(),
+  };
+  switchBusy = true;
+  renderQrResult();
+  try {
+    if (!demo) {
+      const target = characteristics.switches;
+      const data = encodeSwitchSave(index, item, qr.key);
+      await enqueue(() => target.writeValueWithResponse(data));
+    }
+    switches[index] = clone(item);
+    switchesDraft[index] = clone(item);
+    selectedSwitch = index;
+    selectedInput = 0;
+    stopAddSwitch();
+  } catch (error) {
+    console.warn("Toevoegen mislukt", error);
+    renderQrResult("Toevoegen is niet gelukt. Probeer het opnieuw.");
+  } finally {
+    switchBusy = false;
+    if (addingSwitch) renderQrResult();
+  }
+}
+
+async function removeSwitch() {
+  const index = selectedSwitch;
+  if (switchBusy || !confirm(`${switchName(index)} verwijderen? De knoppen doen daarna niets meer.`)) return;
+  switchBusy = true;
+  try {
+    if (!demo) {
+      const target = characteristics.switches;
+      await enqueue(() => target.writeValueWithResponse(opFrame(OP_DELETE, index)));
+    }
+    switches[index] = null;
+    switchesDraft[index] = null;
+    renderButtonsPanel();
+    renderBar();
+  } catch (error) {
+    console.warn("Verwijderen mislukt", error);
+    showProblem("Verwijderen is niet gelukt. Probeer het opnieuw.");
+  } finally {
+    switchBusy = false;
+  }
+}
+
+// ---- Tabblad Scènes --------------------------------------------------------
+
+function lampColor(lamp) {
+  if (!lamp.on) return "var(--strip)";
+  return lamp.mode === "color" ? toHex(lamp) : kelvinToCss(lamp.kelvin);
+}
+
+function describeLamp(lamp) {
+  if (!lamp.on) return "Uit";
+  const percent = `${Math.round((lamp.brightness / 255) * 100)}%`;
+  return lamp.mode === "color" ? `Kleur, ${percent}` : `${lamp.kelvin} K, ${percent}`;
+}
+
+function swatch(lamp) {
+  const element = document.createElement("span");
+  element.className = "swatch";
+  element.style.background = lampColor(lamp);
+  if (lamp.on) element.style.opacity = String(0.35 + 0.65 * (lamp.brightness / 255));
+  return element;
+}
+
+function renderScenesPanel() {
+  const list = $("scene-list");
+  list.replaceChildren();
+  const used = usedIndexes(scenes);
+  for (const index of used) {
+    const scene = scenes[index];
+    const row = document.createElement("div");
+    row.className = "scene";
+    const call = document.createElement("button");
+    call.type = "button";
+    call.className = "scene-call";
+    const swatches = document.createElement("span");
+    swatches.className = "swatches";
+    for (let slot = 0; slot < LAMP_MAX; slot++) {
+      if (scene.lamps & (1 << slot) && isActive(slot)) swatches.append(swatch(scene.states[slot]));
+    }
+    const title = document.createElement("strong");
+    title.textContent = sceneName(index);
+    call.append(title, swatches);
+    call.setAttribute("aria-label", `${sceneName(index)} oproepen`);
+    call.addEventListener("click", () => activateScene(index));
+
+    const change = document.createElement("button");
+    change.type = "button";
+    change.className = "text-button";
+    change.textContent = "Wijzigen";
+    change.addEventListener("click", () => editScene(index));
+    row.append(call, change);
+    list.append(row);
+  }
+  $("scene-empty").hidden = used.length > 0 || editingScene !== null;
+  $("scene-new").disabled = used.length >= SCENE_MAX || editingScene !== null;
+  $("scene-new").textContent = used.length >= SCENE_MAX ? `Maximaal ${SCENE_MAX} scènes` : "Huidige stand opslaan als scène";
+  renderSceneEditor();
+}
+
+function currentScene(base = null) {
+  const scene = base ? clone(base) : { name: "", lamps: 0, states: Array.from({ length: LAMP_MAX }, defaultLamp) };
+  for (const slot of activeSlots()) {
+    scene.states[slot] = clone(lamps[slot]);
+    if (!base) scene.lamps |= 1 << slot;
+  }
+  return scene;
+}
+
+function newScene() {
+  const index = scenes.findIndex((scene) => scene === null);
+  if (index < 0) return;
+  editingScene = { index, scene: currentScene(), isNew: true };
+  renderScenesPanel();
+  $("scene-edit").querySelector("input.text")?.focus();
+}
+
+function editScene(index) {
+  editingScene = { index, scene: clone(scenes[index]), isNew: false };
+  renderScenesPanel();
+}
+
+function renderSceneEditor() {
+  const editor = $("scene-edit");
+  editor.hidden = editingScene === null;
+  editor.replaceChildren();
+  if (editingScene === null) return;
+  const { index, scene, isNew } = editingScene;
+
+  const heading = document.createElement("h3");
+  heading.textContent = isNew ? "Nieuwe scène" : `${sceneName(index)} wijzigen`;
+  const nameLabel = document.createElement("label");
+  nameLabel.className = "field";
+  nameLabel.textContent = "Naam";
+  const name = document.createElement("input");
+  name.className = "text";
+  name.type = "text";
+  name.autocomplete = "off";
+  name.placeholder = `Scène ${index + 1}`;
+  name.value = scene.name;
+  name.addEventListener("input", () => { scene.name = limitName(name); });
+  nameLabel.append(name);
+  editor.append(heading, nameLabel);
+
+  for (const slot of activeSlots()) {
+    const row = document.createElement("label");
+    row.className = "scene-lamp";
+    const box = document.createElement("input");
+    box.type = "checkbox";
+    box.checked = (scene.lamps & (1 << slot)) !== 0;
+    box.addEventListener("change", () => {
+      scene.lamps ^= 1 << slot;
+      renderSceneEditor();
+    });
+    const text = document.createElement("span");
+    text.textContent = lampName(slot);
+    const what = document.createElement("span");
+    what.className = "what";
+    what.textContent = box.checked ? describeLamp(scene.states[slot]) : "Blijft zoals hij is";
+    row.append(box, text, what);
+    if (box.checked) row.append(swatch(scene.states[slot]));
+    editor.append(row);
+  }
+
+  if (!isNew) {
+    const take = document.createElement("button");
+    take.type = "button";
+    take.className = "text-button";
+    take.textContent = "Huidige stand van de lampen overnemen";
+    take.addEventListener("click", () => {
+      editingScene.scene = currentScene(scene);
+      renderSceneEditor();
+    });
+    editor.append(take);
+  }
+
+  const valid = (scene.lamps & activeSlots().reduce((mask, slot) => mask | (1 << slot), 0)) !== 0;
+  if (!valid) {
+    const message = document.createElement("p");
+    message.className = "message";
+    message.textContent = "Kies minstens één lamp die meedoet.";
+    editor.append(message);
+  }
+
+  const actions = document.createElement("div");
+  actions.className = "actions";
+  const save = document.createElement("button");
+  save.type = "button";
+  save.className = "primary";
+  save.textContent = "Opslaan";
+  save.disabled = !valid;
+  save.addEventListener("click", saveScene);
+  const cancel = document.createElement("button");
+  cancel.type = "button";
+  cancel.className = "text-button";
+  cancel.textContent = "Annuleren";
+  cancel.addEventListener("click", () => {
+    editingScene = null;
+    renderScenesPanel();
+  });
+  actions.append(save, cancel);
+  if (!isNew) {
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "text-button";
+    remove.textContent = "Verwijderen";
+    remove.addEventListener("click", deleteScene);
+    actions.append(remove);
+  }
+  editor.append(actions);
+}
+
+async function sceneWrite(data, problem) {
+  if (demo) return true;
+  try {
+    const target = characteristics.scenes;
+    await enqueue(() => target.writeValueWithResponse(data));
+    return true;
+  } catch (error) {
+    console.warn(problem, error);
+    showProblem(`${problem} Probeer het opnieuw.`);
+    return false;
+  }
+}
+
+async function saveScene() {
+  const { index, scene } = editingScene;
+  // Lampen die niet meer bestaan doen niet mee.
+  scene.lamps &= activeSlots().reduce((mask, slot) => mask | (1 << slot), 0);
+  if (!(await sceneWrite(encodeSceneSave(index, scene), "Opslaan is niet gelukt."))) return;
+  scenes[index] = clone(scene);
+  editingScene = null;
+  renderScenesPanel();
+}
+
+async function deleteScene() {
+  const { index } = editingScene;
+  if (!confirm(`${sceneName(index)} verwijderen?`)) return;
+  if (!(await sceneWrite(opFrame(OP_DELETE, index), "Verwijderen is niet gelukt."))) return;
+  scenes[index] = null;
+  editingScene = null;
+  renderScenesPanel();
+}
+
+async function activateScene(index) {
+  const scene = scenes[index];
+  if (!scene) return;
+  // Meteen tonen; de ESP meldt daarna de echte stand.
+  for (let slot = 0; slot < LAMP_MAX; slot++) {
+    if (scene.lamps & (1 << slot)) lamps[slot] = clone(scene.states[slot]);
+  }
+  activeSlots().forEach(renderLamp);
+  renderAllButton();
+  await sceneWrite(opFrame(OP_ACTIVATE, index), "Oproepen is niet gelukt.");
 }
 
 // ---- Tabs en onderbalk -----------------------------------------------------
 
-const TABS = ["lampen", "strip", "knoppen"];
+const TABS = ["lampen", "scenes", "knoppen", "strip"];
 
 function showTab(name, focus = false) {
+  if (name !== "knoppen") stopQrScan();
+  if (name === "scenes") renderScenesPanel();
   activeTab = name;
   for (const tab of TABS) {
     const selected = tab === name;
@@ -983,7 +1650,7 @@ function isConnected() {
 
 function isDirty(tab) {
   if (tab === "strip") return JSON.stringify(stripDraft) !== JSON.stringify(strip);
-  if (tab === "knoppen") return JSON.stringify(buttonsDraft) !== JSON.stringify(buttons);
+  if (tab === "knoppen") return JSON.stringify(switchesDraft) !== JSON.stringify(switches);
   return false;
 }
 
@@ -1011,8 +1678,8 @@ function renderBar() {
     if (problems && !problems.ok) {
       text = problems.total ?? "Los eerst de fouten hierboven op.";
       valid = false;
-    } else if (activeTab === "knoppen" && !buttonsOk(buttonsDraft)) {
-      text = "Kies bij elke functie minstens één lamp.";
+    } else if (activeTab === "knoppen" && !switchesOk()) {
+      text = "Kies bij elke functie minstens één lamp of een scène.";
       valid = false;
     }
     paintBar({ ...barBase, text, problem: !valid, label: "Opslaan", enabled: valid, onClick: () => saveTab(activeTab) });
@@ -1027,6 +1694,12 @@ function renderBar() {
 
 function show(text, options = {}) {
   bar = { ...barBase, text, ...options };
+  renderBar();
+}
+
+// Melding in de onderbalk; de knop (Verbreken) blijft zoals hij was.
+function showProblem(text) {
+  bar = { ...bar, text, problem: true };
   renderBar();
 }
 
@@ -1067,7 +1740,11 @@ async function sendLamp(slot) {
       pending.delete(next);
       const target = characteristics.lamps;
       const data = encodeLampUpdate(next);
-      await enqueue(() => target.writeValueWithResponse(data));
+      // Zonder antwoord: de ESP hoeft niet per bericht te bevestigen, dus schuiven loopt vloeiender.
+      const write = target.properties.writeWithoutResponse
+        ? () => target.writeValueWithoutResponse(data)
+        : () => target.writeValueWithResponse(data);
+      await enqueue(write);
       await sleep(SEND_INTERVAL_MS);
     }
   } catch (error) {
@@ -1097,13 +1774,18 @@ async function saveTab(tab) {
       strip = config;
       renderLampsPanel();
     } else {
-      const config = clone(buttonsDraft);
-      if (!demo) {
-        const target = characteristics.buttons;
-        const data = encodeButtons(config);
-        await enqueue(() => target.writeValueWithResponse(data));
+      // Alleen gewijzigde schakelaars; toevoegen en verwijderen gaat al direct.
+      for (let i = 0; i < SWITCH_MAX; i++) {
+        const draft = switchesDraft[i];
+        if (draft === null || JSON.stringify(draft) === JSON.stringify(switches[i])) continue;
+        const item = clone(draft);
+        if (!demo) {
+          const target = characteristics.switches;
+          const data = encodeSwitchSave(i, item);
+          await enqueue(() => target.writeValueWithResponse(data));
+        }
+        switches[i] = item;
       }
-      buttons = config;
     }
     savedUntil = Date.now() + SAVED_NOTICE_MS;
     setTimeout(renderBar, SAVED_NOTICE_MS + 50);
@@ -1137,20 +1819,33 @@ function onLampNotification(event) {
   if (slot < LAMP_MAX && !pending.has(slot)) {
     lamps[slot] = decodeLamp(view, 1);
     renderLamp(slot);
+    renderAllButton();
   }
 }
 
 // Niet-opgeslagen wijzigingen blijven staan als de verbinding even wegviel.
-function adoptDevice(newStrip, newButtons) {
+function adoptDevice(newStrip, newSwitches, newScenes) {
   const stripEdited = JSON.stringify(stripDraft) !== JSON.stringify(strip);
-  const buttonsEdited = JSON.stringify(buttonsDraft) !== JSON.stringify(buttons);
+  const switchesEdited = JSON.stringify(switchesDraft) !== JSON.stringify(switches);
   strip = newStrip;
-  buttons = newButtons;
+  switches = newSwitches;
+  scenes = newScenes;
   if (!stripEdited) stripDraft = clone(strip);
-  if (!buttonsEdited) buttonsDraft = clone(buttons);
+  if (!switchesEdited) switchesDraft = clone(switches);
   renderLampsPanel();
   renderStripPanel();
   renderButtonsPanel();
+  renderScenesPanel();
+}
+
+// Kiest elke plek en leest hem; schakelaars en scènes passen niet in één waarde.
+async function readSlots(characteristic, count, decode) {
+  const result = [];
+  for (let i = 0; i < count; i++) {
+    await characteristic.writeValueWithResponse(opFrame(OP_SELECT, i));
+    result.push(decode(await characteristic.readValue()));
+  }
+  return result;
 }
 
 async function openConnection() {
@@ -1162,23 +1857,24 @@ async function openConnection() {
   const service = await server.getPrimaryService(SERVICE_UUID);
   const lampsChar = await service.getCharacteristic(LAMPS_UUID);
   const stripChar = await service.getCharacteristic(STRIP_UUID);
-  const buttonsChar = await service.getCharacteristic(BUTTONS_UUID);
+  const switchesChar = await service.getCharacteristic(SWITCHES_UUID);
+  const scenesChar = await service.getCharacteristic(SCENES_UUID);
 
   showBusy("Voer de pincode in als je telefoon erom vraagt.");
   const lampData = await readUntilPaired(lampsChar);
   if (lampData.byteLength !== LAMP_MAX * LAMP_FRAME) throw new Error("onverwachte lampgegevens");
+  showBusy("Instellingen ophalen…");
   const stripData = await stripChar.readValue();
-  const buttonData = await buttonsChar.readValue();
-  if (stripData.byteLength !== STRIP_FRAME || buttonData.byteLength !== BUTTON_FRAME) {
-    throw new Error("onverwachte instellingen");
-  }
+  if (stripData.byteLength !== STRIP_FRAME) throw new Error("onverwachte instellingen");
+  const newSwitches = await readSlots(switchesChar, SWITCH_MAX, decodeSwitchRecord);
+  const newScenes = await readSlots(scenesChar, SCENE_MAX, decodeSceneRecord);
 
   for (let i = 0; i < LAMP_MAX; i++) lamps[i] = decodeLamp(lampData, i * LAMP_FRAME);
-  adoptDevice(decodeStrip(stripData), decodeButtons(buttonData));
+  adoptDevice(decodeStrip(stripData), newSwitches, newScenes);
 
   lampsChar.addEventListener("characteristicvaluechanged", onLampNotification);
   await lampsChar.startNotifications();
-  characteristics = { lamps: lampsChar, strip: stripChar, buttons: buttonsChar };
+  characteristics = { lamps: lampsChar, strip: stripChar, switches: switchesChar, scenes: scenesChar };
 }
 
 async function connectKnownDevice() {
@@ -1293,16 +1989,34 @@ function wireStaticControls() {
     renderBar();
   });
 
+  $("fade").addEventListener("input", () => {
+    stripDraft.fadeUnits = Number($("fade").value);
+    renderFade();
+    renderBar();
+  });
+
   $("hold").addEventListener("input", () => {
-    buttonsDraft.holdMs = Number($("hold").value);
+    draftButtons().holdMs = Number($("hold").value);
     renderTiming();
     renderBar();
   });
   $("double").addEventListener("input", () => {
-    buttonsDraft.doubleMs = Number($("double").value);
+    draftButtons().doubleMs = Number($("double").value);
     renderTiming();
     renderBar();
   });
+  $("switch-name").addEventListener("input", () => {
+    switchesDraft[selectedSwitch].name = limitName($("switch-name"));
+    renderSwitchList();
+    renderBar();
+  });
+  $("switch-remove").addEventListener("click", removeSwitch);
+  $("qr-scan").addEventListener("click", startQrScan);
+  $("qr-text").addEventListener("input", () => renderQrResult());
+  $("switch-add-confirm").addEventListener("click", confirmAddSwitch);
+  $("switch-add-cancel").addEventListener("click", () => stopAddSwitch());
+  $("new-switch-model").replaceChildren(...MODELS.map((label, value) => new Option(label, value)));
+  $("scene-new").addEventListener("click", newScene);
 }
 
 async function start() {
@@ -1310,6 +2024,7 @@ async function start() {
   renderLampsPanel();
   renderStripPanel();
   renderButtonsPanel();
+  renderScenesPanel();
 
   if ("serviceWorker" in navigator && window.isSecureContext) {
     navigator.serviceWorker.register("sw.js").catch((error) => console.warn(error));

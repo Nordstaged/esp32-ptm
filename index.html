@@ -56,12 +56,31 @@
   .lamp-head, .lamp-tune { display: flex; align-items: center; gap: .75rem; padding-inline: 1.25rem; }
   .lamp-tune { flex-wrap: wrap; }
   .lamp-tune[hidden] { display: none; }
-  /* Rondje in de lampkleur: klapt de kleurkeuze open en dicht. */
-  .tune-toggle {
-    flex: none; width: 2.75rem; height: 2.75rem; padding: 0; border-radius: 50%;
-    border: 3px solid var(--rule); background: var(--swatch, var(--strip)); cursor: pointer;
+  /* Menuknop (☰): opent de kleurkeuze in een venster. */
+  .menu-button {
+    flex: none; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 4px;
+    width: 2.75rem; height: 2.75rem; padding: 0; border: 0; border-radius: .625rem; background: none; cursor: pointer;
   }
-  .tune-toggle[aria-expanded="true"] { border-color: var(--text); }
+  .menu-button span { display: block; width: 1.375rem; height: 2.5px; border-radius: 2px; background: var(--text); }
+  .menu-button:active { background: var(--strip); }
+
+  /* Venster met de kleurkeuze; naast het venster tikken sluit het. */
+  dialog#tune-dialog {
+    width: min(26rem, calc(100% - 2rem)); max-height: calc(100dvh - 2rem); padding: 0;
+    border: 1.5px solid var(--rule); border-radius: 1rem; background: var(--room); color: var(--text);
+  }
+  dialog#tune-dialog::backdrop { background: rgb(0 0 0 / .6); }
+  .dialog-box { padding: .75rem 0 1.25rem; }
+  .dialog-head { display: flex; align-items: center; gap: .75rem; padding: 0 .75rem .75rem 1.25rem; }
+  .dialog-head h2 { flex: 1; margin: 0; font-size: 1.25rem; font-weight: 600; }
+  .dialog-close {
+    flex: none; width: 2.75rem; height: 2.75rem; border: 0; border-radius: .625rem;
+    background: none; color: var(--quiet); font: inherit; font-size: 1.375rem; cursor: pointer;
+  }
+  .dialog-close:active { background: var(--strip); }
+  #tune-body .lamp-tune { row-gap: 1.25rem; }
+  #tune-body .wheel { width: min(15rem, 100%); margin-inline: auto; }
+  #tune-body .color { justify-content: center; }
   /* Schuifregelaars reageren alleen op een horizontale beweging, niet op aantikken. */
   input.guarded { pointer-events: none; }
   .range-area { display: flex; align-items: center; flex: 1; min-width: 0; touch-action: pan-y; cursor: ew-resize; }
@@ -143,10 +162,17 @@
   .tabs button[aria-selected="true"] { color: var(--text); border-bottom-color: var(--text); }
   .panel[hidden] { display: none; }
   #panel-lampen { display: grid; grid-template-rows: auto; grid-auto-rows: minmax(min-content, 1fr); min-height: 100%; }
-  .all-block { display: flex; flex-direction: column; gap: .75rem; padding-block: 1rem .75rem; border-bottom: 1.5px solid var(--rule); }
-  .all-lamps { display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding-inline: 1.25rem; }
-  .all-lamps h2 { margin: 0 auto 0 0; font-size: 1.0625rem; font-weight: 600; color: var(--quiet); }
-  .all-block .lit { background: var(--glow-fill, var(--glow)); }
+  /* Alle lampen: een eigen kaart met een doorlopende, ronde balk (de lampen hebben vakjes). */
+  .all-block {
+    display: flex; flex-direction: column; gap: .875rem; margin: 1rem 1.25rem .5rem; padding: 1rem;
+    border: 1.5px solid var(--rule); border-radius: 1rem; background: #2e2539;
+  }
+  .all-lamps { display: flex; align-items: center; gap: .75rem; }
+  .all-lamps h2 { margin: 0; font-size: 1.25rem; font-weight: 600; }
+  .all-level { margin-right: auto; color: var(--quiet); font-size: 1.0625rem; font-variant-numeric: tabular-nums; }
+  .all-block .strip { height: 3.25rem; margin-inline: 0; border-radius: 99px; background: var(--room); }
+  .all-block .strip::after { display: none; }
+  .all-block .lit { background: var(--glow-fill, var(--glow)); border-radius: 99px; }
   .all-block.is-off .lit { opacity: .13; box-shadow: none; }
 
   /* Strip-indeling */
@@ -382,7 +408,7 @@
     <div class="lamp-head">
       <h2></h2>
       <span class="level"></span>
-      <button class="tune-toggle" type="button" aria-expanded="false"></button>
+      <button class="menu-button" type="button" aria-haspopup="dialog"><span></span><span></span><span></span></button>
       <button class="power" type="button" aria-pressed="false"></button>
     </div>
     <div class="strip">
@@ -391,6 +417,16 @@
     </div>
   </section>
 </template>
+
+<dialog id="tune-dialog" aria-labelledby="tune-title">
+  <div class="dialog-box">
+    <div class="dialog-head">
+      <h2 id="tune-title"></h2>
+      <button class="dialog-close" id="tune-close" type="button" aria-label="Sluiten">✕</button>
+    </div>
+    <div id="tune-body"></div>
+  </div>
+</dialog>
 
 <template id="tune-template">
     <div class="lamp-tune">
@@ -953,21 +989,37 @@ function buildTune(name, getLamp, change) {
   return view;
 }
 
-// Welke kleurkeuzes open staan, ook na opnieuw opbouwen ("all" voor Alle lampen).
-const openTunes = new Set();
+// De kleurkeuze in het venster: { key (lampnummer of "all"), view }, of null als hij dicht is.
+let openTune = null;
 
-function wireTuneToggle(button, tune, key, label) {
-  button.setAttribute("aria-label", `Kleur van ${label}`);
-  const apply = () => {
-    const open = openTunes.has(key);
-    tune.root.hidden = !open;
-    button.setAttribute("aria-expanded", String(open));
-  };
-  button.addEventListener("click", () => {
-    if (openTunes.has(key)) openTunes.delete(key); else openTunes.add(key);
-    apply();
+function openTuneDialog(key) {
+  const all = key === "all";
+  const name = all ? "alle lampen" : lampName(key);
+  const view = all
+    ? buildTune(name, allLamp, setAllColor)
+    : buildTune(name, () => lamps[key], (patch) => changeLamp(key, patch));
+  view.root.hidden = false;
+  $("tune-title").textContent = all ? "Kleur van alle lampen" : `Kleur van ${name}`;
+  $("tune-body").replaceChildren(view.root);
+  openTune = { key, view };
+  view.render(all ? allLamp() : lamps[key]);
+  $("tune-dialog").showModal();
+}
+
+function wireTuneDialog() {
+  const dialog = $("tune-dialog");
+  $("tune-close").addEventListener("click", () => dialog.close());
+  // Naast het venster tikken: dan valt de klik op het dialoogelement zelf.
+  dialog.addEventListener("click", (event) => { if (event.target === dialog) dialog.close(); });
+  dialog.addEventListener("close", () => {
+    openTune = null;
+    $("tune-body").replaceChildren();
   });
-  apply();
+}
+
+function wireMenuButton(button, key, label) {
+  button.setAttribute("aria-label", `Kleur van ${label}`);
+  button.addEventListener("click", () => openTuneDialog(key));
 }
 
 function renderLamp(slot) {
@@ -979,14 +1031,13 @@ function renderLamp(slot) {
   view.root.classList.toggle("is-off", !lamp.on);
   view.strip.style.setProperty("--level", lamp.brightness / 255);
   view.strip.style.setProperty("--glow", lampCss(lamp));
-  view.toggle.style.setProperty("--swatch", lampCss(lamp));
   view.level.textContent = `${percent}%`;
   view.power.textContent = lamp.on ? "Aan" : "Uit";
   view.power.setAttribute("aria-pressed", String(lamp.on));
 
   if (document.activeElement !== view.brightness) view.brightness.value = lamp.brightness;
   view.brightness.setAttribute("aria-valuetext", `${percent} procent`);
-  view.tune.render(lamp);
+  if (openTune?.key === slot) openTune.view.render(lamp);
 }
 
 function changeLamp(slot, patch) {
@@ -1004,8 +1055,6 @@ function allLamp() {
   const slot = slots.find((s) => lamps[s].on) ?? slots[0];
   return slot === undefined ? defaultLamp() : lamps[slot];
 }
-
-let allTune = null;
 
 function renderAllControls() {
   const button = $("all-power");
@@ -1025,8 +1074,8 @@ function renderAllControls() {
   const input = $("all-brightness");
   if (document.activeElement !== input) input.value = Math.max(level, 1);
   input.setAttribute("aria-valuetext", `${Math.round((level / 255) * 100)} procent`);
-  $("all-tune").style.setProperty("--swatch", lampCss(allLamp()));
-  allTune.render(allLamp());
+  $("all-level").textContent = on.length ? `${Math.round((level / 255) * 100)}%` : "uit";
+  if (openTune?.key === "all") openTune.view.render(allLamp());
 }
 
 function setAllBrightness(brightness) {
@@ -1056,19 +1105,16 @@ function buildLamp(slot) {
   const view = {
     root,
     level: root.querySelector(".level"),
-    toggle: root.querySelector(".tune-toggle"),
     power: root.querySelector(".power"),
     strip: root.querySelector(".strip"),
     brightness: root.querySelector(".brightness"),
-    tune: buildTune(name, () => lamps[slot], (patch) => changeLamp(slot, patch)),
   };
   root.querySelector("h2").textContent = name;
   root.setAttribute("aria-label", name);
-  root.append(view.tune.root);
   view.brightness.setAttribute("aria-label", `Helderheid ${name}`);
   view.power.setAttribute("aria-label", `${name} aan of uit`);
   guardRange(view.brightness);
-  wireTuneToggle(view.toggle, view.tune, slot, name);
+  wireMenuButton(root.querySelector(".menu-button"), slot, name);
 
   view.power.addEventListener("click", () => changeLamp(slot, { on: !lamps[slot].on }));
   view.brightness.addEventListener("input", () => changeLamp(slot, { on: true, brightness: Number(view.brightness.value) }));
@@ -1084,7 +1130,8 @@ function renderLampsPanel() {
   head.innerHTML = `
     <div class="all-lamps">
       <h2>Alle lampen</h2>
-      <button class="tune-toggle" id="all-tune" type="button" aria-expanded="false"></button>
+      <span class="all-level" id="all-level"></span>
+      <button class="menu-button" id="all-menu" type="button" aria-haspopup="dialog"><span></span><span></span><span></span></button>
       <button id="all-power" type="button"></button>
     </div>
     <div class="strip" id="all-strip">
@@ -1095,9 +1142,7 @@ function renderLampsPanel() {
   const all = head.querySelector("#all-brightness");
   guardRange(all);
   all.addEventListener("input", () => setAllBrightness(Number(all.value)));
-  allTune = buildTune("alle lampen", allLamp, setAllColor);
-  head.append(allTune.root);
-  wireTuneToggle(head.querySelector("#all-tune"), allTune, "all", "alle lampen");
+  wireMenuButton(head.querySelector("#all-menu"), "all", "alle lampen");
   $("panel-lampen").replaceChildren(head);
   lampViews.length = 0;
   activeSlots().forEach(buildLamp);
@@ -2345,6 +2390,7 @@ function wireStaticControls() {
     renderBar();
   });
 
+  wireTuneDialog();
   for (const id of ["fade", "hold", "double"]) guardRange($(id));
   $("fade").addEventListener("input", () => {
     stripDraft.fadeUnits = Number($("fade").value);

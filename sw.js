@@ -1,5 +1,5 @@
 // Bewaart de app op de telefoon, zodat hij ook zonder internet opent.
-const CACHE = "lampen-v5";
+const CACHE = "lampen-v6";
 const FILES = ["./", "index.html", "manifest.webmanifest", "icon-192.png", "icon-512.png"];
 
 self.addEventListener("install", (event) => {

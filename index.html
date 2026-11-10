@@ -116,7 +116,20 @@
   .kelvin input::-webkit-slider-thumb { -webkit-appearance: none; width: 1.75rem; height: 1.75rem; margin-top: -.5625rem; border-radius: 50%; border: 3px solid var(--room); background: var(--text); }
   .kelvin input::-moz-range-thumb { width: 1.25rem; height: 1.25rem; border-radius: 50%; border: 3px solid var(--room); background: var(--text); }
 
-  .color { flex: 1 1 10rem; display: flex; align-items: center; gap: .625rem; min-height: 2.75rem; color: var(--quiet); cursor: pointer; }
+  .color { flex: 1 1 100%; display: flex; align-items: center; gap: 1.25rem; flex-wrap: wrap; color: var(--quiet); }
+  .exact { display: flex; align-items: center; gap: .625rem; min-height: 2.75rem; cursor: pointer; }
+  /* Kleurenwiel: richting is de tint, de afstand tot het midden de verzadiging. */
+  .wheel {
+    position: relative; flex: none; width: 11rem; aspect-ratio: 1; border-radius: 50%;
+    background: radial-gradient(closest-side, #fff, rgb(255 255 255 / 0)),
+                conic-gradient(red, yellow, lime, aqua, blue, magenta, red);
+    touch-action: none; cursor: crosshair;
+  }
+  .wheel-dot {
+    position: absolute; left: var(--x, 50%); top: var(--y, 50%); width: 1.75rem; height: 1.75rem; margin: -.875rem 0 0 -.875rem;
+    border-radius: 50%; border: 3px solid #fff; box-shadow: 0 0 0 1.5px var(--room), 0 1px 4px rgb(0 0 0 / .5);
+    background: var(--pick, #fff); pointer-events: none;
+  }
   .color input { flex: none; width: 3.5rem; height: 2.75rem; padding: 0; border: 1.5px solid var(--rule); border-radius: .625rem; background: none; cursor: pointer; }
   .color input::-webkit-color-swatch-wrapper { padding: 3px; }
   .color input::-webkit-color-swatch { border: 0; border-radius: .375rem; }
@@ -133,7 +146,7 @@
   .all-block { display: flex; flex-direction: column; gap: .75rem; padding-block: 1rem .75rem; border-bottom: 1.5px solid var(--rule); }
   .all-lamps { display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding-inline: 1.25rem; }
   .all-lamps h2 { margin: 0 auto 0 0; font-size: 1.0625rem; font-weight: 600; color: var(--quiet); }
-  .all-block .strip { --glow: var(--text); }
+  .all-block .lit { background: var(--glow-fill, var(--glow)); }
   .all-block.is-off .lit { opacity: .13; box-shadow: none; }
 
   /* Strip-indeling */
@@ -390,7 +403,10 @@
         <input type="range" step="50" aria-label="Kleurtemperatuur">
         <output></output>
       </div>
-      <label class="color"><input type="color"><span>Kies een kleur</span></label>
+      <div class="color">
+        <div class="wheel" role="group" aria-label="Kleurenwiel: richting is de kleur, naar het midden wordt het witter"><span class="wheel-dot"></span></div>
+        <label class="exact"><input type="color"><span>Precies kiezen</span></label>
+      </div>
       <div class="channels" role="group" aria-label="Kanalen in procent">
         <label><span>R</span><input class="num" type="number" min="0" max="100" inputmode="numeric" data-channel="r"></label>
         <label><span>G</span><input class="num" type="number" min="0" max="100" inputmode="numeric" data-channel="g"></label>
@@ -768,6 +784,29 @@ function lampCss(lamp) {
   return kelvinToCss(lamp.kelvin);
 }
 
+// Kleurenwiel: tint 0–360° (0 = rood, boven) en verzadiging 0–1, altijd op volle sterkte;
+// de helderheid regelt de balk.
+function wheelToRgb(hue, saturation) {
+  const channel = (n) => {
+    const k = (n + hue / 60) % 6;
+    return Math.round(255 * (1 - saturation * Math.max(0, Math.min(k, 4 - k, 1))));
+  };
+  return { r: channel(5), g: channel(3), b: channel(1) };
+}
+
+function rgbToWheel({ r, g, b }) {
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  if (max === 0) return { hue: 0, saturation: 0 };
+  const d = max - min;
+  let hue = 0;
+  if (d > 0) {
+    if (max === r) hue = ((g - b) / d) % 6;
+    else if (max === g) hue = (b - r) / d + 2;
+    else hue = (r - g) / d + 4;
+  }
+  return { hue: (hue * 60 + 360) % 360, saturation: d / max };
+}
+
 // Bij wisselen naar kanalen beginnen de kanalen bij wat de lamp nu doet.
 function channelsFrom(lamp) {
   if (lamp.mode === "color") return { r: lamp.r, g: lamp.g, b: lamp.b, warm: 0, cool: 0 };
@@ -839,10 +878,32 @@ function buildTune(name, getLamp, change) {
     kelvinOut: root.querySelector(".kelvin output"),
     color: root.querySelector(".color"),
     colorInput: root.querySelector(".color input"),
+    wheel: root.querySelector(".wheel"),
+    dot: root.querySelector(".wheel-dot"),
     channels: root.querySelector(".channels"),
     channelInputs: [...root.querySelectorAll(".channels input")],
   };
   root.hidden = true;
+
+  // Tikken of slepen op het wiel; het wiel vangt de aanraking zelf (geen scrollen).
+  let picking = null;
+  const pick = (event) => {
+    const box = view.wheel.getBoundingClientRect();
+    const x = event.clientX - (box.left + box.width / 2);
+    const y = event.clientY - (box.top + box.height / 2);
+    const saturation = Math.min(1, Math.hypot(x, y) / (box.width / 2));
+    const hue = ((Math.atan2(x, -y) * 180) / Math.PI + 360) % 360;   // 0° boven, met de klok mee
+    change(wheelToRgb(hue, saturation));
+  };
+  view.wheel.addEventListener("pointerdown", (event) => {
+    picking = event.pointerId;
+    try { view.wheel.setPointerCapture(event.pointerId); } catch (_) { /* nagebootste aanraking */ }
+    pick(event);
+  });
+  view.wheel.addEventListener("pointermove", (event) => { if (event.pointerId === picking) pick(event); });
+  const stop = (event) => { if (event.pointerId === picking) picking = null; };
+  view.wheel.addEventListener("pointerup", stop);
+  view.wheel.addEventListener("pointercancel", stop);
   view.kelvinInput.min = KELVIN_MIN;
   view.kelvinInput.max = KELVIN_MAX;
   view.kelvinInput.setAttribute("aria-label", `Kleurtemperatuur ${name}`);
@@ -874,6 +935,11 @@ function buildTune(name, getLamp, change) {
     if (document.activeElement !== view.kelvinInput) view.kelvinInput.value = lamp.kelvin;
     view.kelvinOut.textContent = `${lamp.kelvin} K`;
     view.colorInput.value = toHex(lamp);
+    const { hue, saturation } = rgbToWheel(lamp);
+    const angle = (hue * Math.PI) / 180;
+    view.dot.style.setProperty("--x", `${50 + 50 * saturation * Math.sin(angle)}%`);
+    view.dot.style.setProperty("--y", `${50 - 50 * saturation * Math.cos(angle)}%`);
+    view.dot.style.setProperty("--pick", toHex(lamp));
     for (const button of view.modeButtons) {
       button.setAttribute("aria-pressed", String(button.dataset.mode === lamp.mode));
     }
@@ -951,6 +1017,11 @@ function renderAllControls() {
   const strip = $("all-strip");
   strip.closest(".all-block").classList.toggle("is-off", on.length === 0);
   strip.style.setProperty("--level", level / 255);
+  // Kleurt mee: één kleur, of een verloop langs de kleuren van de lampen die branden.
+  const colors = on.map((slot) => lampCss(lamps[slot]));
+  const first = colors[0] ?? lampCss(allLamp());
+  strip.style.setProperty("--glow", first);
+  strip.style.setProperty("--glow-fill", colors.length > 1 ? `linear-gradient(90deg, ${colors.join(", ")})` : first);
   const input = $("all-brightness");
   if (document.activeElement !== input) input.value = Math.max(level, 1);
   input.setAttribute("aria-valuetext", `${Math.round((level / 255) * 100)} procent`);

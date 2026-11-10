@@ -52,6 +52,10 @@
     padding-block: 1rem;
   }
   .lamp-head, .lamp-tune { display: flex; align-items: center; gap: .75rem; padding-inline: 1.25rem; }
+  .lamp-tune { flex-wrap: wrap; }
+  .channels { flex: 1 1 100%; display: grid; grid-template-columns: repeat(5, 1fr); gap: .5rem; }
+  .channels label { display: flex; flex-direction: column; gap: .25rem; color: var(--quiet); font-size: .9375rem; }
+  .channels input.num { width: 100%; }
   .lamp h2 { margin: 0; font-size: 1.5rem; font-weight: 600; letter-spacing: -.01em; }
   .level { color: var(--quiet); font-size: 1.0625rem; font-variant-numeric: tabular-nums; margin-right: auto; }
 
@@ -64,7 +68,7 @@
   .power[aria-pressed="true"] { background: var(--text); border-color: var(--text); color: var(--room); }
 
   /* De strip zelf: lichtgevende segmenten tot aan de ingestelde helderheid. */
-  .strip { position: relative; height: 5.25rem; background: var(--strip); overflow: hidden; }
+  .strip { position: relative; height: 2.75rem; background: var(--strip); overflow: hidden; }
   .lit {
     position: absolute; inset: 0 auto 0 0;
     width: calc(var(--level) * 100%);
@@ -90,7 +94,7 @@
   }
   .mode button[aria-pressed="true"] { background: var(--rule); color: var(--text); }
 
-  .kelvin { flex: 1; display: flex; align-items: center; gap: .625rem; min-width: 0; }
+  .kelvin { flex: 1 1 10rem; display: flex; align-items: center; gap: .625rem; min-width: 0; }
   .kelvin output { flex: none; width: 4rem; text-align: right; color: var(--quiet); font-variant-numeric: tabular-nums; }
   .kelvin input { flex: 1; min-width: 0; height: 2.75rem; margin: 0; background: none; appearance: none; -webkit-appearance: none; touch-action: pan-y; }
   .kelvin input::-webkit-slider-runnable-track { height: .625rem; border-radius: 99px; background: linear-gradient(90deg, #ffb76f, #fff0dc 50%, #c9dfff); }
@@ -98,7 +102,7 @@
   .kelvin input::-webkit-slider-thumb { -webkit-appearance: none; width: 1.75rem; height: 1.75rem; margin-top: -.5625rem; border-radius: 50%; border: 3px solid var(--room); background: var(--text); }
   .kelvin input::-moz-range-thumb { width: 1.25rem; height: 1.25rem; border-radius: 50%; border: 3px solid var(--room); background: var(--text); }
 
-  .color { flex: 1; display: flex; align-items: center; gap: .625rem; min-height: 2.75rem; color: var(--quiet); cursor: pointer; }
+  .color { flex: 1 1 10rem; display: flex; align-items: center; gap: .625rem; min-height: 2.75rem; color: var(--quiet); cursor: pointer; }
   .color input { flex: none; width: 3.5rem; height: 2.75rem; padding: 0; border: 1.5px solid var(--rule); border-radius: .625rem; background: none; cursor: pointer; }
   .color input::-webkit-color-swatch-wrapper { padding: 3px; }
   .color input::-webkit-color-swatch { border: 0; border-radius: .375rem; }
@@ -112,8 +116,11 @@
   .tabs button[aria-selected="true"] { color: var(--text); border-bottom-color: var(--text); }
   .panel[hidden] { display: none; }
   #panel-lampen { display: grid; grid-template-rows: auto; grid-auto-rows: minmax(min-content, 1fr); min-height: 100%; }
-  .all-lamps { display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding: 1rem 1.25rem .25rem; }
+  .all-block { display: flex; flex-direction: column; gap: .75rem; padding-block: 1rem .75rem; border-bottom: 1.5px solid var(--rule); }
+  .all-lamps { display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding-inline: 1.25rem; }
   .all-lamps h2 { margin: 0; font-size: 1.0625rem; font-weight: 600; color: var(--quiet); }
+  .all-block .strip { --glow: var(--text); }
+  .all-block.is-off .lit { opacity: .13; box-shadow: none; }
 
   /* Strip-indeling */
   .layout { position: relative; height: 4.5rem; background: var(--strip); margin-top: 1rem; overflow: hidden; }
@@ -358,12 +365,20 @@
       <div class="mode" role="group" aria-label="Soort licht">
         <button type="button" data-mode="white">Wit</button>
         <button type="button" data-mode="color">Kleur</button>
+        <button type="button" data-mode="raw">Kanalen</button>
       </div>
       <div class="kelvin">
         <input type="range" step="50" aria-label="Kleurtemperatuur">
         <output></output>
       </div>
       <label class="color"><input type="color"><span>Kies een kleur</span></label>
+      <div class="channels" role="group" aria-label="Kanalen in procent">
+        <label><span>R</span><input class="num" type="number" min="0" max="100" inputmode="numeric" data-channel="r"></label>
+        <label><span>G</span><input class="num" type="number" min="0" max="100" inputmode="numeric" data-channel="g"></label>
+        <label><span>B</span><input class="num" type="number" min="0" max="100" inputmode="numeric" data-channel="b"></label>
+        <label><span>Warm</span><input class="num" type="number" min="0" max="100" inputmode="numeric" data-channel="warm"></label>
+        <label><span>Koud</span><input class="num" type="number" min="0" max="100" inputmode="numeric" data-channel="cool"></label>
+      </div>
     </div>
   </section>
 </template>
@@ -416,6 +431,10 @@ const SAVED_NOTICE_MS = 2500;
 
 const FLAG_ON = 1;
 const FLAG_COLOR = 2;
+const FLAG_RAW = 4;
+const CHANNELS = ["r", "g", "b", "warm", "cool"];
+const toPercent = (byte) => Math.round((byte * 100) / 255);
+const fromPercent = (percent) => Math.round((Math.min(100, Math.max(0, percent)) * 255) / 100);
 
 const HUES = ["#ffc078", "#7fd8c4", "#f59fc5", "#b7d96b", "#8fb4ff", "#ff9e80", "#c7a6ff", "#ffe27a"];
 
@@ -464,7 +483,7 @@ function withTimeout(promise, ms) {
 
 // ---- Gegevens --------------------------------------------------------------
 
-const defaultLamp = () => ({ on: false, mode: "white", brightness: 255, kelvin: 4000, r: 255, g: 160, b: 60 });
+const defaultLamp = () => ({ on: false, mode: "white", brightness: 255, kelvin: 4000, r: 255, g: 160, b: 60, warm: 0, cool: 0 });
 
 function defaultStrip() {
   const lamps = Array.from({ length: LAMP_MAX }, () => ({ start: 0, count: 0, name: "" }));
@@ -497,6 +516,7 @@ let selectedSlot = 0;
 let selectedSwitch = 0;
 let selectedInput = 0;
 let addingSwitch = false;
+let loadingSettings = false;   // schakelaars en scènes komen na het verbinden binnen
 let editingScene = null;   // { index, scene } tijdens bewerken
 let saving = false;
 let savedUntil = 0;
@@ -511,11 +531,13 @@ const usedIndexes = (list) => [...list.keys()].filter((i) => list[i] !== null);
 
 // ---- Berichtformaat --------------------------------------------------------
 
+// Bij kanalen zijn de twee kelvin-bytes warm en koud wit.
 function encodeLamp(lamp, out = new Uint8Array(LAMP_FRAME), offset = 0) {
-  out[offset] = (lamp.on ? FLAG_ON : 0) | (lamp.mode === "color" ? FLAG_COLOR : 0);
+  const mode = lamp.mode === "color" ? FLAG_COLOR : lamp.mode === "raw" ? FLAG_RAW : 0;
+  out[offset] = (lamp.on ? FLAG_ON : 0) | mode;
   out[offset + 1] = lamp.brightness;
-  out[offset + 2] = lamp.kelvin & 0xff;
-  out[offset + 3] = lamp.kelvin >> 8;
+  out[offset + 2] = lamp.mode === "raw" ? lamp.warm : lamp.kelvin & 0xff;
+  out[offset + 3] = lamp.mode === "raw" ? lamp.cool : lamp.kelvin >> 8;
   out[offset + 4] = lamp.r;
   out[offset + 5] = lamp.g;
   out[offset + 6] = lamp.b;
@@ -524,14 +546,17 @@ function encodeLamp(lamp, out = new Uint8Array(LAMP_FRAME), offset = 0) {
 
 function decodeLamp(view, offset = 0) {
   const flags = view.getUint8(offset);
+  const raw = (flags & FLAG_RAW) !== 0;
   return {
     on: (flags & FLAG_ON) !== 0,
-    mode: (flags & FLAG_COLOR) !== 0 ? "color" : "white",
+    mode: raw ? "raw" : (flags & FLAG_COLOR) !== 0 ? "color" : "white",
     brightness: view.getUint8(offset + 1),
-    kelvin: view.getUint16(offset + 2, true),
+    kelvin: raw ? 4000 : view.getUint16(offset + 2, true),
     r: view.getUint8(offset + 4),
     g: view.getUint8(offset + 5),
     b: view.getUint8(offset + 6),
+    warm: raw ? view.getUint8(offset + 2) : 0,
+    cool: raw ? view.getUint8(offset + 3) : 0,
   };
 }
 
@@ -639,9 +664,12 @@ function encodeSwitchSave(index, item, key = null) {
   return out;
 }
 
+// Byte 0 is de plek, byte 1 een bit per gebruikte plek.
+const slotUsed = (view) => (view.getUint8(1) & (1 << view.getUint8(0))) !== 0;
+
 function decodeSwitchRecord(view) {
   if (view.byteLength !== OP_HEADER + SWITCH_WIRE) throw new Error("onverwachte schakelaargegevens");
-  if (view.getUint8(1) === 0) return null;
+  if (!slotUsed(view)) return null;
   return {
     sourceId: view.getUint32(OP_HEADER, true),
     model: view.getUint8(OP_HEADER + SWITCH_AT_MODEL),
@@ -666,7 +694,7 @@ function encodeSceneSave(index, scene) {
 
 function decodeSceneRecord(view) {
   if (view.byteLength !== OP_HEADER + SCENE_WIRE) throw new Error("onverwachte scènegegevens");
-  if (view.getUint8(1) === 0) return null;
+  if (!slotUsed(view)) return null;
   const scene = { name: decodeName(view, OP_HEADER), lamps: 0, states: [] };
   for (let i = 0; i < LAMP_MAX; i++) {
     const at = OP_HEADER + NAME_BYTES + i * LAMP_FRAME;
@@ -709,6 +737,26 @@ function kelvinToCss(kelvin) {
 
 const toHex = (lamp) => "#" + [lamp.r, lamp.g, lamp.b].map((v) => v.toString(16).padStart(2, "0")).join("");
 
+// Benadering van het mengsel van vijf kanalen, voor op het scherm.
+function rawToCss(lamp) {
+  const mix = [0, 1, 2].map((i) => [lamp.r, lamp.g, lamp.b][i] + (lamp.warm * [255, 183, 111][i] + lamp.cool * [201, 223, 255][i]) / 255);
+  const top = Math.max(...mix, 1);
+  return `rgb(${mix.map((v) => Math.round((v / top) * 255)).join(" ")})`;
+}
+
+function lampCss(lamp) {
+  if (lamp.mode === "color") return toHex(lamp);
+  if (lamp.mode === "raw") return rawToCss(lamp);
+  return kelvinToCss(lamp.kelvin);
+}
+
+// Bij wisselen naar kanalen beginnen de kanalen bij wat de lamp nu doet.
+function channelsFrom(lamp) {
+  if (lamp.mode === "color") return { r: lamp.r, g: lamp.g, b: lamp.b, warm: 0, cool: 0 };
+  const cool = Math.round(((lamp.kelvin - KELVIN_MIN) / (KELVIN_MAX - KELVIN_MIN)) * 255);
+  return { r: 0, g: 0, b: 0, warm: 255 - cool, cool };
+}
+
 function renderLamp(slot) {
   const lamp = lamps[slot];
   const view = lampViews[slot];
@@ -717,7 +765,7 @@ function renderLamp(slot) {
 
   view.root.classList.toggle("is-off", !lamp.on);
   view.strip.style.setProperty("--level", lamp.brightness / 255);
-  view.strip.style.setProperty("--glow", lamp.mode === "color" ? toHex(lamp) : kelvinToCss(lamp.kelvin));
+  view.strip.style.setProperty("--glow", lampCss(lamp));
   view.level.textContent = `${percent}%`;
   view.power.textContent = lamp.on ? "Aan" : "Uit";
   view.power.setAttribute("aria-pressed", String(lamp.on));
@@ -733,21 +781,38 @@ function renderLamp(slot) {
   }
   view.kelvin.hidden = lamp.mode !== "white";
   view.color.hidden = lamp.mode !== "color";
+  view.channels.hidden = lamp.mode !== "raw";
+  for (const input of view.channelInputs) {
+    if (document.activeElement !== input) input.value = toPercent(lamp[input.dataset.channel]);
+  }
 }
 
 function changeLamp(slot, patch) {
   Object.assign(lamps[slot], patch);
   renderLamp(slot);
-  renderAllButton();
+  renderAllControls();
   sendLamp(slot);
 }
 
 const anyLampOn = () => activeSlots().some((slot) => lamps[slot].on);
 
-function renderAllButton() {
+function renderAllControls() {
   const button = $("all-power");
   if (!button) return;
   button.textContent = anyLampOn() ? "Alles uit" : "Alles aan";
+  // De totale balk toont de felste lamp die brandt.
+  const on = activeSlots().filter((slot) => lamps[slot].on);
+  const level = on.length ? Math.max(...on.map((slot) => lamps[slot].brightness)) : 0;
+  const strip = $("all-strip");
+  strip.closest(".all-block").classList.toggle("is-off", on.length === 0);
+  strip.style.setProperty("--level", level / 255);
+  const input = $("all-brightness");
+  if (document.activeElement !== input) input.value = Math.max(level, 1);
+  input.setAttribute("aria-valuetext", `${Math.round((level / 255) * 100)} procent`);
+}
+
+function setAllBrightness(brightness) {
+  for (const slot of activeSlots()) changeLamp(slot, { on: true, brightness });
 }
 
 function toggleAll() {
@@ -772,6 +837,8 @@ function buildLamp(slot) {
     kelvinOut: root.querySelector(".kelvin output"),
     color: root.querySelector(".color"),
     colorInput: root.querySelector(".color input"),
+    channels: root.querySelector(".channels"),
+    channelInputs: [...root.querySelectorAll(".channels input")],
   };
   const name = lampName(slot);
   root.querySelector("h2").textContent = name;
@@ -793,7 +860,19 @@ function buildLamp(slot) {
     });
   });
   for (const button of view.modeButtons) {
-    button.addEventListener("click", () => changeLamp(slot, { mode: button.dataset.mode }));
+    button.addEventListener("click", () => {
+      const mode = button.dataset.mode;
+      if (mode === lamps[slot].mode) return;
+      changeLamp(slot, mode === "raw" ? { mode, ...channelsFrom(lamps[slot]) } : { mode });
+    });
+  }
+  for (const input of view.channelInputs) {
+    input.setAttribute("aria-label", `${input.previousElementSibling.textContent} van ${name}, procent`);
+    input.addEventListener("input", () => {
+      if (input.value.trim() === "" || Number.isNaN(Number(input.value))) return;
+      changeLamp(slot, { [input.dataset.channel]: fromPercent(Number(input.value)) });
+    });
+    input.addEventListener("blur", () => renderLamp(slot));   // te groot of leeg: terug naar de echte waarde
   }
 
   lampViews[slot] = view;
@@ -803,13 +882,20 @@ function buildLamp(slot) {
 
 function renderLampsPanel() {
   const head = document.createElement("div");
-  head.className = "all-lamps";
-  head.innerHTML = `<h2>Alle lampen</h2><button id="all-power" type="button"></button>`;
-  head.querySelector("button").addEventListener("click", toggleAll);
+  head.className = "all-block";
+  head.innerHTML = `
+    <div class="all-lamps"><h2>Alle lampen</h2><button id="all-power" type="button"></button></div>
+    <div class="strip" id="all-strip">
+      <div class="lit"></div>
+      <input class="all-brightness" id="all-brightness" type="range" min="1" max="255" aria-label="Helderheid van alle lampen">
+    </div>`;
+  head.querySelector("#all-power").addEventListener("click", toggleAll);
+  const all = head.querySelector("#all-brightness");
+  all.addEventListener("input", () => setAllBrightness(Number(all.value)));
   $("panel-lampen").replaceChildren(head);
   lampViews.length = 0;
   activeSlots().forEach(buildLamp);
-  renderAllButton();
+  renderAllControls();
 }
 
 // ---- Tabblad Strip ---------------------------------------------------------
@@ -1247,6 +1333,15 @@ function renderSwitchHead() {
 }
 
 function renderButtonsPanel() {
+  $("switch-empty").textContent = loadingSettings
+    ? "Schakelaars ophalen…" : "Nog geen schakelaars. Voeg er een toe met de QR-code op de module.";
+  if (loadingSettings) {
+    stopAddSwitch(false);
+    $("switch-list").replaceChildren();
+    for (const id of ["switch-add", "switch-edit"]) $(id).hidden = true;
+    $("switch-empty").hidden = false;
+    return;
+  }
   const used = usedIndexes(switchesDraft);
   if (switchesDraft[selectedSwitch] === null && used.length > 0) selectedSwitch = used[0];
   const editing = !addingSwitch && switchesDraft[selectedSwitch] !== null;
@@ -1409,13 +1504,13 @@ async function removeSwitch() {
 // ---- Tabblad Scènes --------------------------------------------------------
 
 function lampColor(lamp) {
-  if (!lamp.on) return "var(--strip)";
-  return lamp.mode === "color" ? toHex(lamp) : kelvinToCss(lamp.kelvin);
+  return lamp.on ? lampCss(lamp) : "var(--strip)";
 }
 
 function describeLamp(lamp) {
   if (!lamp.on) return "Uit";
   const percent = `${Math.round((lamp.brightness / 255) * 100)}%`;
+  if (lamp.mode === "raw") return `${CHANNELS.map((c) => toPercent(lamp[c])).join("/")}, ${percent}`;
   return lamp.mode === "color" ? `Kleur, ${percent}` : `${lamp.kelvin} K, ${percent}`;
 }
 
@@ -1430,6 +1525,15 @@ function swatch(lamp) {
 function renderScenesPanel() {
   const list = $("scene-list");
   list.replaceChildren();
+  $("scene-empty").textContent = loadingSettings
+    ? "Scènes ophalen…" : "Nog geen scènes. Zet de lampen zoals je wilt op het tabblad Lampen en sla die stand hier op.";
+  $("scene-new").hidden = loadingSettings;
+  if (loadingSettings) {
+    editingScene = null;
+    $("scene-empty").hidden = false;
+    $("scene-edit").hidden = true;
+    return;
+  }
   const used = usedIndexes(scenes);
   for (const index of used) {
     const scene = scenes[index];
@@ -1615,7 +1719,7 @@ async function activateScene(index) {
     if (scene.lamps & (1 << slot)) lamps[slot] = clone(scene.states[slot]);
   }
   activeSlots().forEach(renderLamp);
-  renderAllButton();
+  renderAllControls();
   await sceneWrite(opFrame(OP_ACTIVATE, index), "Oproepen is niet gelukt.");
 }
 
@@ -1819,33 +1923,66 @@ function onLampNotification(event) {
   if (slot < LAMP_MAX && !pending.has(slot)) {
     lamps[slot] = decodeLamp(view, 1);
     renderLamp(slot);
-    renderAllButton();
+    renderAllControls();
   }
 }
 
 // Niet-opgeslagen wijzigingen blijven staan als de verbinding even wegviel.
-function adoptDevice(newStrip, newSwitches, newScenes) {
+function adoptStrip(newStrip) {
   const stripEdited = JSON.stringify(stripDraft) !== JSON.stringify(strip);
-  const switchesEdited = JSON.stringify(switchesDraft) !== JSON.stringify(switches);
   strip = newStrip;
-  switches = newSwitches;
-  scenes = newScenes;
   if (!stripEdited) stripDraft = clone(strip);
-  if (!switchesEdited) switchesDraft = clone(switches);
   renderLampsPanel();
   renderStripPanel();
+}
+
+function adoptSettings(newSwitches, newScenes) {
+  const switchesEdited = JSON.stringify(switchesDraft) !== JSON.stringify(switches);
+  switches = newSwitches;
+  scenes = newScenes;
+  if (!switchesEdited) switchesDraft = clone(switches);
   renderButtonsPanel();
   renderScenesPanel();
 }
 
-// Kiest elke plek en leest hem; schakelaars en scènes passen niet in één waarde.
+// Schakelaars en scènes passen niet in één waarde: plek kiezen, dan lezen. Elke
+// leesactie geeft ook aan welke plekken in gebruik zijn, dus lege plekken slaan we over.
 async function readSlots(characteristic, count, decode) {
-  const result = [];
-  for (let i = 0; i < count; i++) {
+  const readSlot = (i) => enqueue(async () => {
     await characteristic.writeValueWithResponse(opFrame(OP_SELECT, i));
-    result.push(decode(await characteristic.readValue()));
+    return characteristic.readValue();
+  });
+  const result = Array(count).fill(null);
+  const first = await readSlot(0);
+  const used = first.getUint8(1);
+  result[0] = decode(first);
+  for (let i = 1; i < count; i++) {
+    if (used & (1 << i)) result[i] = decode(await readSlot(i));
   }
   return result;
+}
+
+// Op de achtergrond, zodat de lampen meteen te bedienen zijn.
+async function loadSettings() {
+  const target = characteristics;
+  if (!target) return;
+  loadingSettings = true;
+  renderButtonsPanel();
+  renderScenesPanel();
+  try {
+    const newSwitches = await readSlots(target.switches, SWITCH_MAX, decodeSwitchRecord);
+    const newScenes = await readSlots(target.scenes, SCENE_MAX, decodeSceneRecord);
+    if (characteristics !== target) return;   // ondertussen verbroken
+    loadingSettings = false;
+    adoptSettings(newSwitches, newScenes);
+  } catch (error) {
+    console.warn("Instellingen ophalen mislukt", error);
+    if (characteristics === target) showProblem("Schakelaars en scènes ophalen is niet gelukt. Verbreek en verbind opnieuw.");
+  } finally {
+    loadingSettings = false;
+    renderButtonsPanel();
+    renderScenesPanel();
+  }
 }
 
 async function openConnection() {
@@ -1863,14 +2000,11 @@ async function openConnection() {
   showBusy("Voer de pincode in als je telefoon erom vraagt.");
   const lampData = await readUntilPaired(lampsChar);
   if (lampData.byteLength !== LAMP_MAX * LAMP_FRAME) throw new Error("onverwachte lampgegevens");
-  showBusy("Instellingen ophalen…");
   const stripData = await stripChar.readValue();
   if (stripData.byteLength !== STRIP_FRAME) throw new Error("onverwachte instellingen");
-  const newSwitches = await readSlots(switchesChar, SWITCH_MAX, decodeSwitchRecord);
-  const newScenes = await readSlots(scenesChar, SCENE_MAX, decodeSceneRecord);
 
   for (let i = 0; i < LAMP_MAX; i++) lamps[i] = decodeLamp(lampData, i * LAMP_FRAME);
-  adoptDevice(decodeStrip(stripData), newSwitches, newScenes);
+  adoptStrip(decodeStrip(stripData));
 
   lampsChar.addEventListener("characteristicvaluechanged", onLampNotification);
   await lampsChar.startNotifications();
@@ -1884,6 +2018,7 @@ async function connectKnownDevice() {
   try {
     await openConnection();
     showConnected();
+    loadSettings();
     return true;
   } catch (error) {
     console.warn("Verbinden mislukt", error);

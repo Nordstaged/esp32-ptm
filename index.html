@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#241c2e">
-<title>Lampen</title>
+<title>Bössl Lampen</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png">
 <style>
@@ -327,7 +327,7 @@
 </style>
 </head>
 <body>
-<h1 class="visually-hidden">Lampen</h1>
+<h1 class="visually-hidden">Bössl Lampen</h1>
 <nav class="tabs" role="tablist" aria-label="Onderdelen">
   <button role="tab" id="tab-lampen" aria-controls="panel-lampen" aria-selected="true" type="button">Lampen</button>
   <button role="tab" id="tab-scenes" aria-controls="panel-scenes" aria-selected="false" tabindex="-1" type="button">Scènes</button>
@@ -2437,25 +2437,62 @@ async function start() {
     return;
   }
 
-  showIdle();
-  // Eerder gekozen lampen zonder apparaatkiezer opnieuw verbinden, waar dat kan.
-  if (typeof navigator.bluetooth.getDevices === "function") {
-    try {
-      const known = await navigator.bluetooth.getDevices();
-      if (known.length > 0) {
-        device = known[0];
-        if (!(await connectKnownDevice())) showIdle();
-      }
-    } catch (error) {
-      console.warn(error);
-    }
-  }
-
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible" && device && !device.gatt.connected && !busy && !reconnecting && !userDisconnected) {
       connectKnownDevice().then((ok) => { if (!ok) showIdle(); });
     }
   });
+  await autoConnect();
+}
+
+const AUTO_CONNECT_WAITS_MS = [3000, 5000, 8000];
+const NO_AUTO_CONNECT = "Druk op Verbinden. Automatisch verbinden bij openen kan in deze Chrome nog niet: zet in chrome://flags "
+  + "\"Use the new permissions backend for Web Bluetooth\" aan.";
+
+// Wacht tot de lamp adverteert (als de browser dat kan zien), anders gewoon even.
+async function waitForLamp(ms) {
+  if (typeof device.watchAdvertisements !== "function") return sleep(ms);
+  const abort = new AbortController();
+  try {
+    await device.watchAdvertisements({ signal: abort.signal });
+    await new Promise((resolve) => {
+      const timer = setTimeout(resolve, ms);
+      device.addEventListener("advertisementreceived", () => { clearTimeout(timer); resolve(); }, { once: true });
+    });
+  } catch (_) {
+    await sleep(ms);
+  } finally {
+    abort.abort();
+  }
+}
+
+// Bij openen meteen verbinden met de eerder gekozen lamp, zonder apparaatkiezer.
+// Dat kan alleen als Chrome getDevices() heeft (blijvende Bluetooth-toestemming).
+async function autoConnect() {
+  if (typeof navigator.bluetooth.getDevices !== "function") {
+    showIdle(NO_AUTO_CONNECT);
+    return;
+  }
+  let known = [];
+  try {
+    known = await navigator.bluetooth.getDevices();
+  } catch (error) {
+    console.warn(error);
+  }
+  if (known.length === 0) {
+    showIdle();   // nog nooit gekozen, of de toestemming is ingetrokken
+    return;
+  }
+  device = known[0];
+  if (await connectKnownDevice()) return;
+  // Lamp net nog niet bereikbaar (te ver weg, stroom net terug): nog een paar keer.
+  for (const wait of AUTO_CONNECT_WAITS_MS) {
+    show("Lampen zoeken…", { label: "Verbinden", onClick: onConnectClick });
+    await waitForLamp(wait);
+    if (userDisconnected || characteristics || busy || device === null) return;
+    if (await connectKnownDevice()) return;
+  }
+  showIdle("Lampen niet gevonden. Staan ze aan en ben je in de buurt? Druk dan op Verbinden.", true);
 }
 
 start();

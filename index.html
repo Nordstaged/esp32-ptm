@@ -174,6 +174,15 @@
   .all-block .strip::after { display: none; }
   .all-block .lit { background: var(--glow-fill, var(--glow)); border-radius: 99px; }
   .all-block.is-off .lit { opacity: .13; box-shadow: none; }
+  /* Tabblad Led: de RGB-led op de ESP zelf. */
+  .led-colors { display: flex; align-items: center; gap: .625rem; flex-wrap: wrap; }
+  .led-swatch { width: 2.75rem; height: 2.75rem; border: 1.5px solid var(--rule); border-radius: 50%; background: var(--swatch); cursor: pointer; }
+  .led-swatch[aria-pressed="true"] { outline: 3px solid var(--text); outline-offset: 2px; }
+  .led-colors input { flex: none; width: 3.5rem; height: 2.75rem; padding: 0; border: 1.5px solid var(--rule); border-radius: .625rem; background: none; cursor: pointer; }
+  .led-colors input::-webkit-color-swatch-wrapper { padding: 3px; }
+  .led-colors input::-webkit-color-swatch { border: 0; border-radius: .375rem; }
+  #led-block .hint { margin: 0; color: var(--quiet); }
+  #led-block .hint.problem { color: var(--problem); }
 
   /* Strip-indeling */
   .layout { position: relative; height: 4.5rem; background: var(--strip); margin-top: 1rem; overflow: hidden; }
@@ -333,6 +342,7 @@
   <button role="tab" id="tab-scenes" aria-controls="panel-scenes" aria-selected="false" tabindex="-1" type="button">Scènes</button>
   <button role="tab" id="tab-knoppen" aria-controls="panel-knoppen" aria-selected="false" tabindex="-1" type="button">Knoppen</button>
   <button role="tab" id="tab-strip" aria-controls="panel-strip" aria-selected="false" tabindex="-1" type="button">Strip</button>
+  <button role="tab" id="tab-led" aria-controls="panel-led" aria-selected="false" tabindex="-1" type="button">Led</button>
 </nav>
 <main id="content" inert>
   <section class="panel" id="panel-lampen" role="tabpanel" aria-labelledby="tab-lampen"></section>
@@ -358,6 +368,25 @@
     </div>
     <div class="rows" id="rows"></div>
     <div class="add"><button class="text-button" id="add" type="button">Lamp toevoegen</button></div>
+  </section>
+
+  <section class="panel" id="panel-led" role="tabpanel" aria-labelledby="tab-led" hidden>
+    <div class="all-block" id="led-block">
+      <div class="all-lamps">
+        <h2>Led op de ESP</h2>
+        <span class="all-level" id="led-level"></span>
+        <button class="power" id="led-power" type="button" aria-pressed="false">Aan</button>
+      </div>
+      <div class="strip" id="led-strip">
+        <div class="lit"></div>
+        <input id="led-brightness" type="range" min="1" max="255" aria-label="Helderheid van de led">
+      </div>
+      <div class="led-colors" role="group" aria-label="Kleur van de led">
+        <div class="led-colors" id="led-swatches"></div>
+        <label class="exact">Eigen kleur <input id="led-color" type="color"></label>
+      </div>
+      <p class="hint" id="led-hint">De kleine RGB-led op het board zelf, los van de lampen. De stand blijft bewaard.</p>
+    </div>
   </section>
 
   <section class="panel" id="panel-knoppen" role="tabpanel" aria-labelledby="tab-knoppen" hidden>
@@ -461,6 +490,13 @@ const LAMPS_UUID = "6e7b1a50-4c3e-4f2a-9d11-7a5c3e0b2f11";
 const STRIP_UUID = "6e7b1a50-4c3e-4f2a-9d11-7a5c3e0b2f12";
 const SWITCHES_UUID = "6e7b1a50-4c3e-4f2a-9d11-7a5c3e0b2f13";
 const SCENES_UUID = "6e7b1a50-4c3e-4f2a-9d11-7a5c3e0b2f14";
+const BOARD_LED_UUID = "6e7b1a50-4c3e-4f2a-9d11-7a5c3e0b2f15";
+// Led op het board: aan/uit (bit 0) | helderheid | R | G | B.
+const BOARD_LED_FRAME = 5;
+const LED_SWATCHES = [
+  { name: "Wit", hex: "#ffffff" }, { name: "Warm", hex: "#ff9a3c" }, { name: "Rood", hex: "#ff0000" },
+  { name: "Groen", hex: "#00ff00" }, { name: "Blauw", hex: "#0000ff" }, { name: "Paars", hex: "#a020f0" },
+];
 
 const LAMP_MAX = 8;
 const KELVIN_MIN = 3000;
@@ -1972,13 +2008,113 @@ async function activateScene(index) {
   await sceneWrite(opFrame(OP_ACTIVATE, index), "Oproepen is niet gelukt.");
 }
 
+// ---- Tabblad Led --------------------------------------------------------------
+
+let boardLed = { on: false, brightness: 128, r: 255, g: 255, b: 255 };
+let ledDirty = false;
+let ledSending = false;
+
+const ledHex = (led) => "#" + [led.r, led.g, led.b].map((v) => v.toString(16).padStart(2, "0")).join("");
+const ledAvailable = () => demo || Boolean(characteristics?.boardLed);
+
+function decodeBoardLed(view) {
+  return { on: (view.getUint8(0) & 1) !== 0, brightness: Math.max(1, view.getUint8(1)),
+           r: view.getUint8(2), g: view.getUint8(3), b: view.getUint8(4) };
+}
+
+const encodeBoardLed = (led) => new Uint8Array([led.on ? 1 : 0, led.brightness, led.r, led.g, led.b]);
+
+function renderLedPanel() {
+  const led = boardLed;
+  const available = ledAvailable();
+  const power = $("led-power");
+  power.textContent = led.on ? "Uit" : "Aan";
+  power.setAttribute("aria-pressed", String(led.on));
+  power.setAttribute("aria-label", led.on ? "Led uitzetten" : "Led aanzetten");
+  $("led-block").classList.toggle("is-off", !led.on);
+  $("led-level").textContent = led.on ? `${Math.round((led.brightness / 255) * 100)}%` : "uit";
+  const strip = $("led-strip");
+  strip.style.setProperty("--level", led.brightness / 255);
+  strip.style.setProperty("--glow", ledHex(led));
+  const input = $("led-brightness");
+  if (document.activeElement !== input) input.value = led.brightness;
+  input.setAttribute("aria-valuetext", `${Math.round((led.brightness / 255) * 100)} procent`);
+  const color = $("led-color");
+  if (document.activeElement !== color) color.value = ledHex(led);
+  for (const swatch of $("led-swatches").children) {
+    swatch.setAttribute("aria-pressed", String(swatch.dataset.hex === ledHex(led)));
+  }
+  for (const control of [power, input, color, ...$("led-swatches").children]) control.disabled = !available;
+  const hint = $("led-hint");
+  hint.textContent = available || !isConnected()
+    ? "De kleine RGB-led op het board zelf, los van de lampen. De stand blijft bewaard."
+    : "De firmware op de ESP kent de led nog niet. Flash de nieuwste versie.";
+  hint.classList.toggle("problem", !available && isConnected());
+}
+
+function changeBoardLed(patch) {
+  Object.assign(boardLed, patch);
+  renderLedPanel();
+  sendBoardLed();
+}
+
+// Net als bij de lampen: hooguit één bericht per SEND_INTERVAL_MS, en altijd de laatste stand.
+async function sendBoardLed() {
+  if (demo || !characteristics?.boardLed) return;
+  ledDirty = true;
+  if (ledSending) return;
+  ledSending = true;
+  try {
+    while (ledDirty && characteristics?.boardLed) {
+      ledDirty = false;
+      const target = characteristics.boardLed;
+      const data = encodeBoardLed(boardLed);
+      const write = target.properties.writeWithoutResponse
+        ? () => target.writeValueWithoutResponse(data)
+        : () => target.writeValueWithResponse(data);
+      await enqueue(write);
+      await sleep(SEND_INTERVAL_MS);
+    }
+  } catch (error) {
+    console.warn("Led versturen mislukt", error);
+    ledDirty = false;
+    if (device?.gatt.connected) showConnected("De laatste wijziging is niet aangekomen.", true);
+  } finally {
+    ledSending = false;
+  }
+}
+
+function wireLedControls() {
+  $("led-swatches").replaceChildren(...LED_SWATCHES.map(({ name, hex }) => {
+    const button = document.createElement("button");
+    button.className = "led-swatch";
+    button.type = "button";
+    button.dataset.hex = hex;
+    button.style.setProperty("--swatch", hex);
+    button.setAttribute("aria-label", name);
+    button.addEventListener("click", () => changeBoardLed({ on: true, ...hexToRgb(hex) }));
+    return button;
+  }));
+  $("led-power").addEventListener("click", () => changeBoardLed({ on: !boardLed.on }));
+  const brightness = $("led-brightness");
+  guardRange(brightness);
+  brightness.addEventListener("input", () => changeBoardLed({ on: true, brightness: Number(brightness.value) }));
+  $("led-color").addEventListener("input", () => changeBoardLed({ on: true, ...hexToRgb($("led-color").value) }));
+}
+
+function hexToRgb(hex) {
+  const value = parseInt(hex.slice(1), 16);
+  return { r: (value >> 16) & 255, g: (value >> 8) & 255, b: value & 255 };
+}
+
 // ---- Tabs en onderbalk -----------------------------------------------------
 
-const TABS = ["lampen", "scenes", "knoppen", "strip"];
+const TABS = ["lampen", "scenes", "knoppen", "strip", "led"];
 
 function showTab(name, focus = false) {
   if (name !== "knoppen") stopQrScan();
   if (name === "scenes") renderScenesPanel();
+  if (name === "led") renderLedPanel();
   activeTab = name;
   for (const tab of TABS) {
     const selected = tab === name;
@@ -2020,6 +2156,7 @@ function paintBar(state) {
 
 function renderBar() {
   $("content").inert = !bar.controls;
+  renderLedPanel();   // beschikbaar of niet hangt af van de verbinding
   if (isConnected() && activeTab !== "lampen" && saving) {
     paintBar({ ...barBase, text: "Opslaan…", label: "Bezig", enabled: false });
     return;
@@ -2262,9 +2399,21 @@ async function openConnection() {
   for (let i = 0; i < LAMP_MAX; i++) lamps[i] = decodeLamp(lampData, i * LAMP_FRAME);
   adoptStrip(decodeStrip(stripData));
 
+  let ledChar = null;
+  try {
+    ledChar = await service.getCharacteristic(BOARD_LED_UUID);
+    const ledData = await ledChar.readValue();
+    if (ledData.byteLength !== BOARD_LED_FRAME) throw new Error("onverwachte ledgegevens");
+    boardLed = decodeBoardLed(ledData);
+  } catch (error) {
+    console.info("Geen led-bediening in deze firmware", error);
+    ledChar = null;
+  }
+
   lampsChar.addEventListener("characteristicvaluechanged", onLampNotification);
   await lampsChar.startNotifications();
-  characteristics = { lamps: lampsChar, strip: stripChar, switches: switchesChar, scenes: scenesChar };
+  characteristics = { lamps: lampsChar, strip: stripChar, switches: switchesChar, scenes: scenesChar, boardLed: ledChar };
+  renderLedPanel();
 }
 
 async function connectKnownDevice() {
@@ -2416,6 +2565,7 @@ function wireStaticControls() {
   $("switch-add-confirm").addEventListener("click", confirmAddSwitch);
   $("switch-add-cancel").addEventListener("click", () => stopAddSwitch());
   $("scene-new").addEventListener("click", newScene);
+  wireLedControls();
 }
 
 async function start() {
@@ -2424,6 +2574,7 @@ async function start() {
   renderStripPanel();
   renderButtonsPanel();
   renderScenesPanel();
+  renderLedPanel();
 
   if ("serviceWorker" in navigator && window.isSecureContext) {
     navigator.serviceWorker.register("sw.js").catch((error) => console.warn(error));

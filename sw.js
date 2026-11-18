@@ -1,5 +1,5 @@
 // Bewaart de app op de telefoon, zodat hij ook zonder internet opent.
-const CACHE = "lampen-v11";
+const CACHE = "lampen-v12";
 const FILES = ["./", "index.html", "manifest.webmanifest", "icon-192.png", "icon-512.png"];
 // Langer wachten op het netwerk vertraagt het openen (en dus het verbinden met de lampen).
 const NETWORK_WAIT_MS = 1500;

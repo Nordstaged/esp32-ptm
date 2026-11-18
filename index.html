@@ -372,7 +372,6 @@
       <label class="field">QR-tekst <textarea id="qr-text" rows="3" autocomplete="off" spellcheck="false"></textarea></label>
       <p class="hint" id="qr-result" role="status"></p>
       <label class="field">Naam <input class="text" id="new-switch-name" type="text" autocomplete="off" placeholder="Bijvoorbeeld Woonkamer"></label>
-      <label class="field">Model <select id="new-switch-model"></select></label>
       <div class="actions">
         <button class="primary" id="switch-add-confirm" type="button">Toevoegen</button>
         <button class="text-button" id="switch-add-cancel" type="button">Annuleren</button>
@@ -486,7 +485,8 @@ const DENSE_ABOVE = 100;  // bij meer segmenten geen losse vakjes tekenen
 const SWITCH_MAX = 8;
 const SCENE_MAX = 8;
 const KEY_BYTES = 16;
-const SWITCH_WIRE = 4 + 1 + NAME_BYTES + KEY_BYTES + BUTTON_FRAME;
+const ADDR_BYTES = 6;
+const SWITCH_WIRE = ADDR_BYTES + NAME_BYTES + KEY_BYTES + BUTTON_FRAME;
 const SCENE_WIRE = NAME_BYTES + LAMP_MAX * LAMP_FRAME;
 const OP_SELECT = 0, OP_ACTIVATE = 1, OP_SAVE = 2, OP_DELETE = 3;
 const OP_HEADER = 2;
@@ -524,7 +524,6 @@ const GESTURES = ["Eén keer drukken", "Dubbel drukken", "Lang indrukken"];
 const LONG = 2;
 
 const NONE = 0, BRIGHTNESS = 4, ALTERNATE = 7, SCENE = 10;
-const MODELS = ["PTM 216Z", "PTM 215ZE"];
 const ACTIONS = [
   { value: 0, label: "Niets" },
   { value: 1, label: "Aan of uit" },
@@ -574,7 +573,7 @@ function defaultButtons() {
 const lamps = Array.from({ length: LAMP_MAX }, defaultLamp);
 let strip = defaultStrip();
 let stripDraft = clone(strip);
-// Per plek null of { sourceId, model, name, buttons }. De sleutel kent alleen de ESP.
+// Per plek null of { addr, name, buttons }. De sleutel kent alleen de ESP.
 let switches = Array(SWITCH_MAX).fill(null);
 let switchesDraft = clone(switches);
 // Per plek null of { name, lamps (bitmasker), states: [lamp × LAMP_MAX] }.
@@ -718,16 +717,17 @@ function decodeButtons(view, offset = 0) {
   return config;
 }
 
-// Schakelaar: bron-ID LE(4) | model | naam(20) | sleutel(16) | knopfuncties.
-const SWITCH_AT_MODEL = 4, SWITCH_AT_NAME = 5, SWITCH_AT_KEY = 25, SWITCH_AT_BUTTONS = 41;
+// Schakelaar: adres LE(6) | naam(20) | sleutel(16) | knopfuncties.
+// Het adres staat in de app als 12 hextekens, zoals op het etiket (30S): "E21501500100".
+const SWITCH_AT_NAME = ADDR_BYTES, SWITCH_AT_KEY = SWITCH_AT_NAME + NAME_BYTES, SWITCH_AT_BUTTONS = SWITCH_AT_KEY + KEY_BYTES;
 
 function encodeSwitchSave(index, item, key = null) {
   const out = new Uint8Array(OP_HEADER + SWITCH_WIRE);
   const view = new DataView(out.buffer);
   out[0] = OP_SAVE;
   out[1] = index;
-  view.setUint32(OP_HEADER, item.sourceId, true);
-  out[OP_HEADER + SWITCH_AT_MODEL] = item.model;
+  const bytes = item.addr.match(/../g).map((h) => parseInt(h, 16)).reverse();
+  out.set(bytes, OP_HEADER);
   out.set(nameBytes(item.name), OP_HEADER + SWITCH_AT_NAME);
   if (key) out.set(key, OP_HEADER + SWITCH_AT_KEY);  // leeg = de ESP houdt de bestaande sleutel
   encodeButtons(item.buttons, out, OP_HEADER + SWITCH_AT_BUTTONS);
@@ -741,8 +741,8 @@ function decodeSwitchRecord(view) {
   if (view.byteLength !== OP_HEADER + SWITCH_WIRE) throw new Error("onverwachte schakelaargegevens");
   if (!slotUsed(view)) return null;
   return {
-    sourceId: view.getUint32(OP_HEADER, true),
-    model: view.getUint8(OP_HEADER + SWITCH_AT_MODEL),
+    addr: [...Array(ADDR_BYTES).keys()].reverse()
+      .map((i) => view.getUint8(OP_HEADER + i).toString(16).padStart(2, "0")).join("").toUpperCase(),
     name: decodeName(view, OP_HEADER + SWITCH_AT_NAME),
     buttons: decodeButtons(view, OP_HEADER + SWITCH_AT_BUTTONS),
   };
@@ -777,22 +777,22 @@ function decodeSceneRecord(view) {
 
 const opFrame = (op, index) => new Uint8Array([op, index]);
 
-// QR-code op de module, bijvoorbeeld 30PS3271-A216+...+30S0159169A+Z<32 hex>+...
+// QR-code op de PTM 216B, bijvoorbeeld 30SE21501500100+Z<32 hex>+30PS3221-A216+2PDA03+31Z0000E215+S…
+// Elk PTM 215B/216B-adres begint met E215.
 function parseQr(text) {
-  const result = { sourceId: null, key: null, model: null };
+  const result = { addr: null, key: null };
   for (const field of text.trim().split(/[+\s]+/)) {
-    if (/^30S[0-9a-f]{8}$/i.test(field)) {
-      result.sourceId = parseInt(field.slice(3), 16);
+    if (/^30SE215[0-9a-f]{8}$/i.test(field)) {
+      result.addr = field.slice(3).toUpperCase();
     } else if (/^Z[0-9a-f]{32}$/i.test(field)) {
       result.key = Uint8Array.from(field.slice(1).match(/../g), (h) => parseInt(h, 16));
-    } else if (/^30P/i.test(field)) {
-      result.model = /A215/i.test(field) ? 1 : /A216/i.test(field) ? 0 : null;
     }
   }
   return result;
 }
 
-const hexId = (id) => id.toString(16).toUpperCase().padStart(8, "0");
+// Zoals EnOcean het schrijft: E215:0150:0100.
+const hexId = (addr) => addr.match(/..../g).join(":");
 
 // ---- Tabblad Lampen --------------------------------------------------------
 
@@ -1581,7 +1581,7 @@ function renderSwitchHead() {
   const name = $("switch-name");
   if (document.activeElement !== name) name.value = item.name;
   name.placeholder = `Schakelaar ${selectedSwitch + 1}`;
-  $("switch-id").textContent = `${MODELS[item.model] ?? "Onbekend model"}, ID ${hexId(item.sourceId)}`;
+  $("switch-id").textContent = `PTM 216B, adres ${hexId(item.addr)}`;
 }
 
 function renderButtonsPanel() {
@@ -1624,7 +1624,6 @@ function startAddSwitch() {
   addingSwitch = true;
   $("qr-text").value = "";
   $("new-switch-name").value = "";
-  $("new-switch-model").value = 0;
   $("qr-scan").hidden = !canScan;
   renderQrResult();
   renderButtonsPanel();
@@ -1644,15 +1643,14 @@ function stopAddSwitch(render = true) {
 function renderQrResult(problem = null) {
   const text = $("qr-text").value;
   const qr = parseQr(text);
-  const complete = qr.sourceId !== null && qr.key !== null;
-  const duplicate = complete && switches.some((item) => item?.sourceId === qr.sourceId);
-  if (qr.model !== null) $("new-switch-model").value = qr.model;
+  const complete = qr.addr !== null && qr.key !== null;
+  const duplicate = complete && switches.some((item) => item?.addr === qr.addr);
 
   let message = "";
   if (problem) message = problem;
   else if (duplicate) message = "Deze schakelaar staat er al in.";
-  else if (complete) message = `Gevonden: ID ${hexId(qr.sourceId)}, sleutel herkend.`;
-  else if (text.trim() !== "") message = "Hierin staan geen ID (30S…) en sleutel (Z…) van een PTM-module.";
+  else if (complete) message = `Gevonden: adres ${hexId(qr.addr)}, sleutel herkend.`;
+  else if (text.trim() !== "") message = "Hierin staan geen adres (30SE215…) en sleutel (Z…) van een PTM 216B.";
   $("qr-result").textContent = message;
   $("qr-result").classList.toggle("problem", problem !== null || duplicate || (!complete && text.trim() !== ""));
   $("switch-add-confirm").disabled = !complete || duplicate || switchBusy || freeSwitchIndex() < 0;
@@ -1703,10 +1701,9 @@ function stopQrScan() {
 async function confirmAddSwitch() {
   const qr = parseQr($("qr-text").value);
   const index = freeSwitchIndex();
-  if (qr.sourceId === null || qr.key === null || index < 0 || switchBusy) return;
+  if (qr.addr === null || qr.key === null || index < 0 || switchBusy) return;
   const item = {
-    sourceId: qr.sourceId,
-    model: Number($("new-switch-model").value),
+    addr: qr.addr,
     name: new TextDecoder().decode(nameBytes($("new-switch-name").value.trim())),
     buttons: defaultButtons(),
   };
@@ -2418,7 +2415,6 @@ function wireStaticControls() {
   $("qr-text").addEventListener("input", () => renderQrResult());
   $("switch-add-confirm").addEventListener("click", confirmAddSwitch);
   $("switch-add-cancel").addEventListener("click", () => stopAddSwitch());
-  $("new-switch-model").replaceChildren(...MODELS.map((label, value) => new Option(label, value)));
   $("scene-new").addEventListener("click", newScene);
 }
 
